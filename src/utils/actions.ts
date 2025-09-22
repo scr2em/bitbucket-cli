@@ -1,7 +1,7 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import open from 'open';
-import { existsSync } from 'fs';
+import { existsSync, rmSync } from 'fs';
 import { join } from 'path';
 import { Repository, PullRequest } from '../services/bitbucket';
 import { consola } from 'consola';
@@ -22,14 +22,19 @@ export async function cloneRepository(repo: Repository): Promise<void> {
     const folderPath = join(process.cwd(), repo.name);
     if (existsSync(folderPath)) {
       consola.warn(`Folder '${repo.name}' already exists in the current directory.`);
-      const shouldOverwrite = await confirmOverwrite(`Do you want to continue cloning? This will create a new folder or may cause conflicts.`);
+      const shouldOverwrite = await confirmOverwrite(`Do you want to remove the existing folder and continue cloning?`);
       
       if (!shouldOverwrite) {
         consola.info('Cloning cancelled by user.');
         return;
       }
+      
+      // Remove the existing folder
+      consola.info(`Removing existing folder '${repo.name}'...`);
+      rmSync(folderPath, { recursive: true, force: true });
+      consola.success('Existing folder removed successfully.');
     }
-
+    
     consola.info(`Cloning ${repo.name}...`);
     consola.info(`URL: ${sshCloneUrl}`);
     
