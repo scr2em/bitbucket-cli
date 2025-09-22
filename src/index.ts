@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
-import { listRepos } from './commands/list.js';
+import { listRepos } from './commands/list';
 import pkg from '../package.json' 
 
 const { version } = pkg;

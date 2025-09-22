@@ -1,4 +1,5 @@
 import axios, { AxiosResponse } from 'axios';
+import { consola } from 'consola';
 
 export interface Repository {
   type: string;
@@ -57,36 +58,65 @@ export interface PaginatedRepositories {
 
 const BITBUCKET_API_BASE = 'https://api.bitbucket.org/2.0';
 
-export async function listRepositories(workspace: string, token: string): Promise<Repository[]> {
+export async function listRepositories(workspace: string, credentials: string, role?: string): Promise<Repository[]> {
   try {
-    // Validate token format
-    if (!token.includes(':')) {
-      throw new Error('Invalid credentials format. Please use: username:app-password');
+    // Validate credentials format
+    if (!credentials || credentials.trim() === '') {
+      throw new Error('Credentials cannot be empty');
     }
     
-    const [username, appPassword] = token.split(':');
-    if (!username || !appPassword) {
-      throw new Error('Invalid credentials format. Both username and app-password are required.');
+    // Parse username:api_token format
+    if (!credentials.includes(':')) {
+      throw new Error('Invalid credentials format. Please use: username:api_token');
     }
     
-    const response: AxiosResponse<PaginatedRepositories> = await axios.get(
-      `${BITBUCKET_API_BASE}/repositories/${workspace}`,
-      {
-        auth: {
-          username: username,
-          password: appPassword
-        },
+    const [username, apiToken] = credentials.split(':');
+    if (!username || !apiToken) {
+      throw new Error('Invalid credentials format. Both username and API token are required.');
+    }
+    
+    const authHeader = `Basic ${Buffer.from(`${username.trim()}:${apiToken.trim()}`).toString('base64')}`;
+    const allRepositories: Repository[] = [];
+    
+    // Build the initial URL with role parameter if provided
+    let baseUrl = `${BITBUCKET_API_BASE}/repositories/${workspace}`;
+    if (role) {
+      baseUrl += `?role=${role}`;
+    }
+    
+    let nextUrl: string | undefined = baseUrl;
+    let pageCount = 0;
+    
+    // Fetch all pages recursively
+    while (nextUrl) {
+      pageCount++;
+      consola.info(`Fetching page ${pageCount}...`);
+      
+      const response: AxiosResponse<PaginatedRepositories> = await axios.get(nextUrl, {
         headers: {
-          'Accept': 'application/json'
+          Authorization: authHeader,
+          Accept: 'application/json'
         }
-      }
-    );
+      });
+      
+      // Add repositories from current page
+      allRepositories.push(...response.data.values);
+      consola.info(`Found ${response.data.values.length} repositories on page ${pageCount} (Total: ${allRepositories.length})`);
+      
+      // Check if there's a next page
+      nextUrl = response.data.next;
+      
+     
+    }
+    
+    consola.success(`Finished fetching all repositories. Total: ${allRepositories.length} repositories across ${pageCount} pages.`);
 
-    return response.data.values;
+    return allRepositories;
   } catch (error) {
     if (axios.isAxiosError(error)) {
+      
       if (error.response?.status === 401) {
-        throw new Error('Invalid credentials. Please check your Bitbucket username and app password. Make sure you\'re using the format: username:app-password');
+        throw new Error('Invalid credentials. Please check your Bitbucket username and API token. Make sure you\'re using the format: username:api_token');
       } else if (error.response?.status === 403) {
         throw new Error('Access forbidden. You may not have permission to access this workspace.');
       } else if (error.response?.status === 404) {

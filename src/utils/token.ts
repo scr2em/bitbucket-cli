@@ -20,9 +20,10 @@ export async function getToken(): Promise<string> {
   }
 
   // Token doesn't exist, prompt user
-  consola.info('Bitbucket credentials not found. Please provide your Bitbucket username and app password.');
-  consola.info('You can create an app password at: https://bitbucket.org/account/settings/app-passwords/');
-  consola.info('Format: username:app-password (e.g., john.doe:ATBBxxxxxxxxxxxx)');
+  consola.info('Bitbucket credentials not found. Please provide your Bitbucket username and API token.');
+  consola.info('You can create an API token at: https://bitbucket.org/account/settings/api-tokens/');
+  consola.info('Format: username:api_token (e.g., john.doe:ATBBxxxxxxxxxxxx)');
+  consola.info('Make sure the token has "Repositories: Read" permission.');
   
   const token = await promptForToken();
   
@@ -51,7 +52,7 @@ function promptForToken(): Promise<string> {
       output: process.stdout
     });
 
-    rl.question('Enter your Bitbucket credentials (username:app-password): ', (token) => {
+    rl.question('Enter your Bitbucket credentials (username:api_token): ', (token) => {
       rl.close();
       if (!token.trim()) {
         consola.error('Credentials cannot be empty');
@@ -60,7 +61,7 @@ function promptForToken(): Promise<string> {
       
       // Validate format
       if (!token.includes(':')) {
-        consola.error('Invalid format. Please use: username:app-password');
+        consola.error('Invalid format. Please use: username:api_token');
         process.exit(1);
       }
       

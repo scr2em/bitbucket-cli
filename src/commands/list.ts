@@ -1,8 +1,8 @@
 import { Command } from 'commander';
-import { listRepositories } from '../services/bitbucket.js';
-import { getToken } from '../utils/token.js';
-import { selectRepository, selectAction } from '../utils/interactive.js';
-import { cloneRepository, openInBrowser } from '../utils/actions.js';
+import { listRepositories } from '../services/bitbucket';
+import { getToken } from '../utils/token';
+import { selectRepository, selectAction } from '../utils/interactive';
+import { cloneRepository, openInBrowser } from '../utils/actions';
 import { consola } from 'consola';
 
 const listRepos = new Command('list');
@@ -11,10 +11,25 @@ listRepos
   .description('List repositories in a workspace')
   .requiredOption('-w, --workspace <workspace>', 'Bitbucket workspace name')
   .option('-f, --filter <filter>', 'Filter repositories by name (case insensitive)')
+  .option('--admin', 'Show only repositories where user has admin access')
+  .option('--member', 'Show only repositories where user has read access')
+  .option('--contributor', 'Show only repositories where user has write access')
+  .option('--owner', 'Show only repositories owned by the user')
   .action(async (options) => {
     try {
+      // Determine the role based on the options
+      let role: string | undefined;
+      if (options.admin) role = 'admin';
+      else if (options.member) role = 'member';
+      else if (options.contributor) role = 'contributor';
+      else if (options.owner) role = 'owner';
+      
+      if (role) {
+        consola.info(`Filtering repositories by role: ${role}`);
+      }
+      
       const token = await getToken();
-      const repos = await listRepositories(options.workspace, token);
+      const repos = await listRepositories(options.workspace, token, role);
       
       let filteredRepos = repos;
       if (options.filter) {
@@ -28,7 +43,6 @@ listRepos
         consola.warn('No repositories found matching the criteria.');
         return;
       }
-
       const selectedRepo = await selectRepository(filteredRepos);
       const action = await selectAction();
       
