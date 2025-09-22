@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as os from 'os';
 import * as readline from 'readline';
 import { consola } from 'consola';
+import { logger } from './logger';
 
 const TOKEN_FILE = path.join(os.homedir(), '.config', '.btoken');
 
@@ -77,7 +78,7 @@ export async function displayLoggedInUser(): Promise<void> {
     // Extract email from the token (format: email:api_token)
     const email = token.split(':')[0];
     
-    consola.info(`Logged in as ${email}`);
+    logger.info(`Logged in as ${email}`);
   } catch (error) {
   }
 }

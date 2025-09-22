@@ -1,5 +1,5 @@
 import axios, { AxiosResponse } from 'axios';
-import { consola } from 'consola';
+import { logger } from './logger';
 
 export interface PaginatedResponse<T> {
   size: number;
@@ -50,7 +50,7 @@ export async function fetchAllPages<T>(
   
   while (nextUrl) {
     pageCount++;
-    consola.info(`Fetching ${resourceName} page ${pageCount}...`);
+    logger.info(`Fetching ${resourceName} page ${pageCount}...`);
     
     const response: AxiosResponse<PaginatedResponse<T>> = await axios.get(nextUrl, {
       headers: {

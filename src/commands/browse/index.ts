@@ -4,6 +4,7 @@ import { listWorkspaces, listProjects, listRepositoriesByProject } from '../../s
 import { selectWorkspace, selectProject, selectRepository, selectAction } from '../../utils/interactive';
 import { cloneRepository, openInBrowser } from '../../utils/actions';
 import { consola } from 'consola';
+import { logger } from '../../utils/logger';
 
 const browseCommand = new Command('browse');
 
@@ -25,7 +26,6 @@ browseCommand
       const token = await getToken();
       
       // Step 1: List and select workspace
-      consola.info('Fetching workspaces...');
       const workspaces = await listWorkspaces(token);
       
       if (workspaces.length === 0) {
@@ -34,10 +34,9 @@ browseCommand
       }
       
       const selectedWorkspace = await selectWorkspace(workspaces);
-      consola.info(`Selected workspace: ${selectedWorkspace.name} (${selectedWorkspace.slug})`);
+      logger.info(`Selected workspace: ${selectedWorkspace.name} (${selectedWorkspace.slug})`);
       
       // Step 2: List and select project
-      consola.info('Fetching projects...');
       const projects = await listProjects(selectedWorkspace.slug, token);
       
       if (projects.length === 0) {
@@ -46,10 +45,8 @@ browseCommand
       }
       
       const selectedProject = await selectProject(projects);
-      consola.info(`Selected project: ${selectedProject.name} (${selectedProject.key})`);
+      logger.info(`Selected project: ${selectedProject.name} (${selectedProject.key})`);
       
-      // Step 3: List and select repository
-      consola.info('Fetching repositories...');
       const repositories = await listRepositoriesByProject(selectedWorkspace.slug, selectedProject.key, token, role);
       
       if (repositories.length === 0) {
@@ -58,7 +55,7 @@ browseCommand
       }
       
       const selectedRepo = await selectRepository(repositories);
-      consola.info(`Selected repository: ${selectedRepo.name}`);
+      logger.info(`Selected repository: ${selectedRepo.name}`);
       
       // Step 4: Choose action
       const action = await selectAction();
