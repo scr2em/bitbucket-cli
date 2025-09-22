@@ -1,4 +1,5 @@
 import { createAuthHeader, fetchAllPages, handleApiError, PaginatedResponse } from '../utils/api';
+import axios from 'axios';
 
 export interface Repository {
   type: string;
@@ -229,6 +230,24 @@ export async function listPullRequests(workspace: string, repo: string, credenti
       authHeader,
       'pull requests'
     );
+  } catch (error) {
+    handleApiError(error, { workspace });
+  }
+}
+
+export async function getPullRequestDiff(workspace: string, repo: string, prId: number, credentials: string): Promise<string> {
+  try {
+    const authHeader = createAuthHeader(credentials);
+    const url = `${BITBUCKET_API_BASE}/repositories/${workspace}/${repo}/pullrequests/${prId}/patch`;
+    
+    const response = await axios.get(url, {
+      headers: {
+        Authorization: authHeader,
+        Accept: 'text/plain'
+      }
+    });
+    
+    return response.data;
   } catch (error) {
     handleApiError(error, { workspace });
   }

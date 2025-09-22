@@ -1,8 +1,9 @@
-import { exec } from 'child_process';
+import { exec, spawn } from 'child_process';
 import { promisify } from 'util';
 import open from 'open';
-import { existsSync, rmSync } from 'fs';
+import { existsSync, rmSync, writeFileSync, mkdtempSync } from 'fs';
 import { join } from 'path';
+import { tmpdir } from 'os';
 import { Repository, PullRequest } from '../services/bitbucket';
 import { consola } from 'consola';
 import { confirmOverwrite } from './interactive';
@@ -124,4 +125,72 @@ export function displayPullRequestDetails(pr: PullRequest): void {
   
   consola.log(`🔗 URL: ${pr.links.html.href}`);
   consola.log('');
+}
+
+export async function viewPullRequestDiff(prId: string | number, diffContent: string): Promise<void> {
+  try {
+    // Create a temporary directory for the diff file
+    const tempDir = mkdtempSync(join(tmpdir(), 'bitbucket-cli-diff-'));
+    const diffFilePath = join(tempDir, `pr-${prId}.patch`);
+    
+    // Write the diff content to a temporary file
+    writeFileSync(diffFilePath, diffContent);
+    
+    consola.info(`Viewing diff for PR #${prId}...`);
+    consola.info(`Diff file: ${diffFilePath}`);
+    
+    consola.info('Attempting to view diff with git-split-diffs...');
+    
+    // Use spawn to properly handle the interactive git-split-diffs command
+    await new Promise<void>((resolve, reject) => {
+      const gitDiff = spawn('git', [
+        'diff',
+        '--no-index',
+        '--color=always',
+        '--word-diff=color',
+        '--',
+        '/dev/null',
+        diffFilePath
+      ], {
+        stdio: ['pipe', 'pipe', 'pipe']
+      });
+
+      const splitDiffs = spawn('git-split-diffs', [], {
+        stdio: ['pipe', 'inherit', 'inherit']
+      });
+
+      // Pipe git diff output to git-split-diffs
+      gitDiff.stdout.pipe(splitDiffs.stdin);
+
+      // Handle errors
+      gitDiff.on('error', (error) => {
+        reject(new Error(`Failed to run git diff: ${error.message}`));
+      });
+
+      splitDiffs.on('error', (error) => {
+        reject(new Error(`Failed to run git-split-diffs: ${error.message}. Make sure git-split-diffs is installed.`));
+      });
+
+      // Wait for git-split-diffs to complete
+      splitDiffs.on('close', (code) => {
+        if (code === 0) {
+          resolve();
+        } else {
+          reject(new Error(`git-split-diffs exited with code ${code}`));
+        }
+      });
+    });
+    
+    try {
+      rmSync(diffFilePath);
+      rmSync(tempDir, { recursive: true });
+    } catch (cleanupError) {
+      consola.warn('Could not clean up temporary files:', cleanupError);
+    }
+    
+  } catch (error) {
+    consola.error('Failed to view diff:', error instanceof Error ? error.message : 'Unknown error');
+    consola.info('You can manually view the diff by opening the PR in your browser.');
+    throw error;
+  }
 }

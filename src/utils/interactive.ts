@@ -1,5 +1,6 @@
 import inquirer from 'inquirer';
 import { Repository, Workspace, Project, PullRequest } from '../services/bitbucket';
+import { NavigationResult } from './navigation';
 
 export async function selectRepository(repositories: Repository[]): Promise<Repository> {
   const choices = repositories.map(repo => ({
@@ -171,7 +172,7 @@ export async function selectPRState(): Promise<string> {
   return state;
 }
 
-export async function selectPRAction(): Promise<'open' | 'view-details'> {
+export async function selectPRAction(): Promise<'open' | 'view-details' | 'view-diff'> {
   const { action } = await inquirer.prompt([
     {
       type: 'list',
@@ -187,6 +188,11 @@ export async function selectPRAction(): Promise<'open' | 'view-details'> {
           name: 'View details',
           value: 'view-details',
           short: 'v'
+        },
+        {
+          name: 'View diff',
+          value: 'view-diff',
+          short: 'd'
         }
       ]
     }
