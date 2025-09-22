@@ -1,6 +1,6 @@
 {
   "name": "@scr2em/bitbucket-cli",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "A CLI tool for interacting with Bitbucket repositories",
   "main": "dist/index.js",
   "bin": {
