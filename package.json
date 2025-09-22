@@ -1,20 +1,32 @@
 {
-  "name": "bitbucket-cli",
+  "name": "@scr2em/bitbucket-cli",
   "version": "1.0.0",
   "description": "A CLI tool for interacting with Bitbucket repositories",
   "main": "dist/index.js",
   "bin": {
     "bitbucket": "dist/index.js"
   },
+  "files": [
+    "dist/**/*",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "ts-node src/index.ts",
     "start": "node dist/index.js",
     "prepare": "npm run build"
   },
-  "keywords": ["bitbucket", "cli", "git", "repositories"],
+  "keywords": ["bitbucket", "cli", "git", "repositories", "workspace", "pull-requests", "branches"],
   "author": "",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/scr2em/bitbucket-cli.git"
+  },
+  "homepage": "https://github.com/scr2em/bitbucket-cli#readme",
+  "engines": {
+    "node": ">=16.0.0"
+  },
   "dependencies": {
     "commander": "^11.1.0",
     "inquirer": "^9.2.12",
