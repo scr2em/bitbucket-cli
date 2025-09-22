@@ -1,8 +1,11 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import open from 'open';
+import { existsSync } from 'fs';
+import { join } from 'path';
 import { Repository } from '../services/bitbucket';
 import { consola } from 'consola';
+import { confirmOverwrite } from './interactive';
 
 const execAsync = promisify(exec);
 
@@ -13,6 +16,18 @@ export async function cloneRepository(repo: Repository): Promise<void> {
     
     if (!sshCloneUrl) {
       throw new Error('SSH clone URL not found for this repository');
+    }
+
+    // Check if folder already exists
+    const folderPath = join(process.cwd(), repo.name);
+    if (existsSync(folderPath)) {
+      consola.warn(`Folder '${repo.name}' already exists in the current directory.`);
+      const shouldOverwrite = await confirmOverwrite(`Do you want to continue cloning? This will create a new folder or may cause conflicts.`);
+      
+      if (!shouldOverwrite) {
+        consola.info('Cloning cancelled by user.');
+        return;
+      }
     }
 
     consola.info(`Cloning ${repo.name}...`);

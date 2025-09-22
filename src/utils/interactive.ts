@@ -44,3 +44,16 @@ export async function selectAction(): Promise<'clone' | 'open'> {
 
   return action;
 }
+
+export async function confirmOverwrite(message: string): Promise<boolean> {
+  const { confirmed } = await inquirer.prompt([
+    {
+      type: 'confirm',
+      name: 'confirmed',
+      message,
+      default: false
+    }
+  ]);
+
+  return confirmed;
+}

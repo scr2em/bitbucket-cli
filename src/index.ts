@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
-import { listRepos } from './commands/list';
+import { reposCommand } from './commands/repos';
+import { pullRequestsCommand } from './commands/pullrequests';
+import { branchesCommand } from './commands/branches';
+import { commitsCommand } from './commands/commits';
 import pkg from '../package.json' 
 
 const { version } = pkg;
@@ -14,8 +17,9 @@ program
   .version(version);
 
 program
-  .command('repos')
-  .description('Repository management commands')
-  .addCommand(listRepos);
+  .addCommand(reposCommand)
+  .addCommand(pullRequestsCommand)
+  .addCommand(branchesCommand)
+  .addCommand(commitsCommand);
 
 program.parse();

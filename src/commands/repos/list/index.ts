@@ -1,8 +1,8 @@
 import { Command } from 'commander';
-import { listRepositories } from '../services/bitbucket';
-import { getToken } from '../utils/token';
-import { selectRepository, selectAction } from '../utils/interactive';
-import { cloneRepository, openInBrowser } from '../utils/actions';
+import { listRepositories } from '../../../services/bitbucket';
+import { getToken } from '../../../utils/token';
+import { selectRepository, selectAction } from '../../../utils/interactive';
+import { cloneRepository, openInBrowser } from '../../../utils/actions';
 import { consola } from 'consola';
 
 const listRepos = new Command('list');
@@ -57,4 +57,4 @@ listRepos
     }
   });
 
-export { listRepos };
+export { listRepos as listCommand };
