@@ -5,6 +5,7 @@ import { reposCommand } from './commands/repos';
 import { pullRequestsCommand } from './commands/pullrequests';
 import { branchesCommand } from './commands/branches';
 import { commitsCommand } from './commands/commits';
+import { browseCommand } from './commands/browse';
 import pkg from '../package.json' 
 
 const { version } = pkg;
@@ -20,6 +21,7 @@ program
   .addCommand(reposCommand)
   .addCommand(pullRequestsCommand)
   .addCommand(branchesCommand)
-  .addCommand(commitsCommand);
+  .addCommand(commitsCommand)
+  .addCommand(browseCommand);
 
 program.parse();

@@ -1,5 +1,4 @@
-import axios, { AxiosResponse } from 'axios';
-import { consola } from 'consola';
+import { createAuthHeader, fetchAllPages, handleApiError, PaginatedResponse } from '../utils/api';
 
 export interface Repository {
   type: string;
@@ -47,36 +46,88 @@ export interface Repository {
   };
 }
 
-export interface PaginatedRepositories {
-  size: number;
-  page: number;
-  pagelen: number;
-  next?: string;
-  previous?: string;
-  values: Repository[];
+export interface Workspace {
+  type: string;
+  uuid: string;
+  name: string;
+  slug: string;
+  is_private: boolean;
+  created_on: string;
+  updated_on: string;
+  links: {
+    self: { href: string };
+    html: { href: string };
+    avatar: { href: string };
+  };
+}
+
+export interface Project {
+  type: string;
+  uuid: string;
+  key: string;
+  name: string;
+  description?: string;
+  is_private: boolean;
+  created_on: string;
+  updated_on: string;
+  links: {
+    self: { href: string };
+    html: { href: string };
+    avatar: { href: string };
+  };
 }
 
 const BITBUCKET_API_BASE = 'https://api.bitbucket.org/2.0';
 
+export async function listWorkspaces(credentials: string): Promise<Workspace[]> {
+  try {
+    const authHeader = createAuthHeader(credentials);
+    return await fetchAllPages<Workspace>(
+      `${BITBUCKET_API_BASE}/workspaces`,
+      authHeader,
+      'workspaces'
+    );
+  } catch (error) {
+    handleApiError(error, {});
+  }
+}
+
+export async function listProjects(workspace: string, credentials: string): Promise<Project[]> {
+  try {
+    const authHeader = createAuthHeader(credentials);
+    return await fetchAllPages<Project>(
+      `${BITBUCKET_API_BASE}/workspaces/${workspace}/projects`,
+      authHeader,
+      'projects'
+    );
+  } catch (error) {
+    handleApiError(error, { workspace });
+  }
+}
+
+export async function listRepositoriesByProject(workspace: string, projectKey: string, credentials: string, role?: string): Promise<Repository[]> {
+  try {
+    const authHeader = createAuthHeader(credentials);
+    
+    // Build the initial URL with project filter and role parameter if provided
+    let baseUrl = `${BITBUCKET_API_BASE}/repositories/${workspace}?q=project.key="${projectKey}"`;
+    if (role) {
+      baseUrl += `&role=${role}`;
+    }
+    
+    return await fetchAllPages<Repository>(
+      baseUrl,
+      authHeader,
+      'repositories'
+    );
+  } catch (error) {
+    handleApiError(error, { workspace, projectKey });
+  }
+}
+
 export async function listRepositories(workspace: string, credentials: string, role?: string): Promise<Repository[]> {
   try {
-    // Validate credentials format
-    if (!credentials || credentials.trim() === '') {
-      throw new Error('Credentials cannot be empty');
-    }
-    
-    // Parse username:api_token format
-    if (!credentials.includes(':')) {
-      throw new Error('Invalid credentials format. Please use: username:api_token');
-    }
-    
-    const [username, apiToken] = credentials.split(':');
-    if (!username || !apiToken) {
-      throw new Error('Invalid credentials format. Both username and API token are required.');
-    }
-    
-    const authHeader = `Basic ${Buffer.from(`${username.trim()}:${apiToken.trim()}`).toString('base64')}`;
-    const allRepositories: Repository[] = [];
+    const authHeader = createAuthHeader(credentials);
     
     // Build the initial URL with role parameter if provided
     let baseUrl = `${BITBUCKET_API_BASE}/repositories/${workspace}`;
@@ -84,47 +135,12 @@ export async function listRepositories(workspace: string, credentials: string, r
       baseUrl += `?role=${role}`;
     }
     
-    let nextUrl: string | undefined = baseUrl;
-    let pageCount = 0;
-    
-    // Fetch all pages recursively
-    while (nextUrl) {
-      pageCount++;
-      consola.info(`Fetching page ${pageCount}...`);
-      
-      const response: AxiosResponse<PaginatedRepositories> = await axios.get(nextUrl, {
-        headers: {
-          Authorization: authHeader,
-          Accept: 'application/json'
-        }
-      });
-      
-      // Add repositories from current page
-      allRepositories.push(...response.data.values);
-      consola.info(`Found ${response.data.values.length} repositories on page ${pageCount} (Total: ${allRepositories.length})`);
-      
-      // Check if there's a next page
-      nextUrl = response.data.next;
-      
-     
-    }
-    
-    consola.success(`Finished fetching all repositories. Total: ${allRepositories.length} repositories across ${pageCount} pages.`);
-
-    return allRepositories;
+    return await fetchAllPages<Repository>(
+      baseUrl,
+      authHeader,
+      'repositories'
+    );
   } catch (error) {
-    if (axios.isAxiosError(error)) {
-      
-      if (error.response?.status === 401) {
-        throw new Error('Invalid credentials. Please check your Bitbucket username and API token. Make sure you\'re using the format: username:api_token');
-      } else if (error.response?.status === 403) {
-        throw new Error('Access forbidden. You may not have permission to access this workspace.');
-      } else if (error.response?.status === 404) {
-        throw new Error(`Workspace '${workspace}' not found.`);
-      } else {
-        throw new Error(`API request failed: ${error.response?.status} ${error.response?.statusText}`);
-      }
-    }
-    throw new Error('Failed to fetch repositories from Bitbucket API');
+    handleApiError(error, { workspace });
   }
 }
