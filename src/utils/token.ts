@@ -69,3 +69,15 @@ function promptForToken(): Promise<string> {
     });
   });
 }
+
+export async function displayLoggedInUser(): Promise<void> {
+  try {
+    const token = await getToken();
+    
+    // Extract email from the token (format: email:api_token)
+    const email = token.split(':')[0];
+    
+    consola.info(`Logged in as ${email}`);
+  } catch (error) {
+  }
+}

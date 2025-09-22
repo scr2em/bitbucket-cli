@@ -60,12 +60,10 @@ export async function fetchAllPages<T>(
     });
     
     allItems.push(...response.data.values);
-    consola.info(`Found ${response.data.values.length} ${resourceName} on page ${pageCount} (Total: ${allItems.length})`);
     
     nextUrl = response.data.next;
   }
   
-  consola.success(`Finished fetching all ${resourceName}. Total: ${allItems.length} ${resourceName} across ${pageCount} pages.`);
   return allItems;
 }
 
