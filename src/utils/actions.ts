@@ -3,7 +3,7 @@ import { promisify } from 'util';
 import open from 'open';
 import { existsSync } from 'fs';
 import { join } from 'path';
-import { Repository } from '../services/bitbucket';
+import { Repository, PullRequest } from '../services/bitbucket';
 import { consola } from 'consola';
 import { confirmOverwrite } from './interactive';
 
@@ -75,4 +75,48 @@ export async function openInBrowser(repo: Repository): Promise<void> {
     consola.info(`You can manually open: ${repo.links.html.href}`);
     throw error;
   }
+}
+
+export async function openPullRequestInBrowser(pr: PullRequest): Promise<void> {
+  try {
+    const url = pr.links.html.href;
+    consola.info(`Opening PR #${pr.id} in browser...`);
+    consola.info(`URL: ${url}`);
+    
+    await open(url);
+    consola.success('Pull request opened in browser!');
+  } catch (error) {
+    consola.error('Failed to open pull request in browser:', error);
+    consola.info(`You can manually open: ${pr.links.html.href}`);
+    throw error;
+  }
+}
+
+export function displayPullRequestDetails(pr: PullRequest): void {
+  const stateEmoji = {
+    'OPEN': '🟢',
+    'MERGED': '✅',
+    'DECLINED': '❌',
+    'SUPERSEDED': '🔄'
+  }[pr.state] || '❓';
+  
+  consola.log('');
+  consola.log(`📋 Pull Request #${pr.id}`);
+  consola.log(`   ${stateEmoji} ${pr.title}`);
+  consola.log('');
+  consola.log(`👤 Author: ${pr.author.display_name} (@${pr.author.nickname})`);
+  consola.log(`🌿 Source: ${pr.source.branch.name}`);
+  consola.log(`🎯 Target: ${pr.destination.branch.name}`);
+  consola.log(`📅 Created: ${new Date(pr.created_on).toLocaleString()}`);
+  consola.log(`🔄 Updated: ${new Date(pr.updated_on).toLocaleString()}`);
+  consola.log('');
+  
+  if (pr.description) {
+    consola.log(`📝 Description:`);
+    consola.log(pr.description);
+    consola.log('');
+  }
+  
+  consola.log(`🔗 URL: ${pr.links.html.href}`);
+  consola.log('');
 }

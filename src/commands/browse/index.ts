@@ -1,8 +1,8 @@
 import { Command } from 'commander';
 import { getToken } from '../../utils/token';
-import { listWorkspaces, listProjects, listRepositoriesByProject } from '../../services/bitbucket';
-import { selectWorkspace, selectProject, selectRepository, selectAction } from '../../utils/interactive';
-import { cloneRepository, openInBrowser } from '../../utils/actions';
+import { listWorkspaces, listProjects, listRepositoriesByProject, listPullRequests } from '../../services/bitbucket';
+import { selectWorkspace, selectProject, selectRepository, selectAction, selectPRState, selectPullRequest, selectPRAction } from '../../utils/interactive';
+import { cloneRepository, openInBrowser, openPullRequestInBrowser, displayPullRequestDetails } from '../../utils/actions';
 import { consola } from 'consola';
 import { logger } from '../../utils/logger';
 
@@ -64,6 +64,32 @@ browseCommand
         await cloneRepository(selectedRepo);
       } else if (action === 'open') {
         await openInBrowser(selectedRepo);
+      } else if (action === 'list-prs') {
+        // Step 5: Select PR state filter
+        const prState = await selectPRState();
+        const stateFilter = prState === 'all' ? undefined : prState;
+        
+        consola.info(`Fetching pull requests for ${selectedWorkspace.slug}/${selectedRepo.name}...`);
+        const pullRequests = await listPullRequests(selectedWorkspace.slug, selectedRepo.name, token, stateFilter);
+        
+        if (pullRequests.length === 0) {
+          consola.info('No pull requests found.');
+          return;
+        }
+        
+        consola.success(`Found ${pullRequests.length} pull request(s)`);
+        
+        // Step 6: Select a specific PR
+        const selectedPR = await selectPullRequest(pullRequests);
+        
+        // Step 7: Choose what to do with the PR
+        const prAction = await selectPRAction();
+        
+        if (prAction === 'open') {
+          await openPullRequestInBrowser(selectedPR);
+        } else if (prAction === 'view-details') {
+          displayPullRequestDetails(selectedPR);
+        }
       }
       
     } catch (error) {

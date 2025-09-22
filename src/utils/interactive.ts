@@ -1,5 +1,5 @@
 import inquirer from 'inquirer';
-import { Repository, Workspace, Project } from '../services/bitbucket';
+import { Repository, Workspace, Project, PullRequest } from '../services/bitbucket';
 
 export async function selectRepository(repositories: Repository[]): Promise<Repository> {
   const choices = repositories.map(repo => ({
@@ -21,7 +21,7 @@ export async function selectRepository(repositories: Repository[]): Promise<Repo
   return selectedRepo;
 }
 
-export async function selectAction(): Promise<'clone' | 'open'> {
+export async function selectAction(): Promise<'clone' | 'open' | 'list-prs'> {
   const { action } = await inquirer.prompt([
     {
       type: 'list',
@@ -37,6 +37,11 @@ export async function selectAction(): Promise<'clone' | 'open'> {
           name: 'Open in browser',
           value: 'open',
           short: 'o'
+        },
+        {
+          name: 'List pull requests',
+          value: 'list-prs',
+          short: 'p'
         }
       ]
     }
@@ -96,4 +101,96 @@ export async function selectProject(projects: Project[]): Promise<Project> {
   ]);
 
   return selectedProject;
+}
+
+export async function selectPullRequest(pullRequests: PullRequest[]): Promise<PullRequest> {
+  const choices = pullRequests.map(pr => {
+    const stateEmoji = {
+      'OPEN': '🟢',
+      'MERGED': '✅',
+      'DECLINED': '❌',
+      'SUPERSEDED': '🔄'
+    }[pr.state] || '❓';
+    
+    return {
+      name: `${stateEmoji} #${pr.id} - ${pr.title} (${pr.author.display_name})`,
+      value: pr,
+      short: `#${pr.id}`
+    };
+  });
+
+  const { selectedPR } = await inquirer.prompt([
+    {
+      type: 'list',
+      name: 'selectedPR',
+      message: 'Select a pull request:',
+      choices,
+      pageSize: 10
+    }
+  ]);
+
+  return selectedPR;
+}
+
+export async function selectPRState(): Promise<string> {
+  const { state } = await inquirer.prompt([
+    {
+      type: 'list',
+      name: 'state',
+      message: 'Select PR state filter:',
+      choices: [
+        {
+          name: '🟢 Open',
+          value: 'open',
+          short: 'o'
+        },
+        {
+          name: '✅ Merged',
+          value: 'merged',
+          short: 'm'
+        },
+        {
+          name: '❌ Declined',
+          value: 'declined',
+          short: 'd'
+        },
+        {
+          name: '🔄 Superseded',
+          value: 'superseded',
+          short: 's'
+        },
+        {
+          name: '📋 All states',
+          value: 'all',
+          short: 'a'
+        }
+      ]
+    }
+  ]);
+
+  return state;
+}
+
+export async function selectPRAction(): Promise<'open' | 'view-details'> {
+  const { action } = await inquirer.prompt([
+    {
+      type: 'list',
+      name: 'action',
+      message: 'What would you like to do with this pull request?',
+      choices: [
+        {
+          name: 'Open in browser',
+          value: 'open',
+          short: 'o'
+        },
+        {
+          name: 'View details',
+          value: 'view-details',
+          short: 'v'
+        }
+      ]
+    }
+  ]);
+
+  return action;
 }
