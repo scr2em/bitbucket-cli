@@ -1,0 +1,70 @@
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
+import * as readline from 'readline';
+import { consola } from 'consola';
+
+const TOKEN_FILE = path.join(os.homedir(), '.config', '.btoken');
+
+export async function getToken(): Promise<string> {
+  try {
+    // Check if token file exists
+    if (fs.existsSync(TOKEN_FILE)) {
+      const token = fs.readFileSync(TOKEN_FILE, 'utf8').trim();
+      if (token) {
+        return token;
+      }
+    }
+  } catch (error) {
+    // File doesn't exist or can't be read, continue to prompt user
+  }
+
+  // Token doesn't exist, prompt user
+  consola.info('Bitbucket credentials not found. Please provide your Bitbucket username and app password.');
+  consola.info('You can create an app password at: https://bitbucket.org/account/settings/app-passwords/');
+  consola.info('Format: username:app-password (e.g., john.doe:ATBBxxxxxxxxxxxx)');
+  
+  const token = await promptForToken();
+  
+  // Save token to file
+  try {
+    // Ensure .config directory exists
+    const configDir = path.dirname(TOKEN_FILE);
+    if (!fs.existsSync(configDir)) {
+      fs.mkdirSync(configDir, { recursive: true });
+    }
+    
+    fs.writeFileSync(TOKEN_FILE, token);
+    consola.success('Credentials saved successfully!');
+  } catch (error) {
+    consola.error('Failed to save credentials:', error);
+    throw new Error('Could not save credentials to file');
+  }
+
+  return token;
+}
+
+function promptForToken(): Promise<string> {
+  return new Promise((resolve) => {
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout
+    });
+
+    rl.question('Enter your Bitbucket credentials (username:app-password): ', (token) => {
+      rl.close();
+      if (!token.trim()) {
+        consola.error('Credentials cannot be empty');
+        process.exit(1);
+      }
+      
+      // Validate format
+      if (!token.includes(':')) {
+        consola.error('Invalid format. Please use: username:app-password');
+        process.exit(1);
+      }
+      
+      resolve(token.trim());
+    });
+  });
+}
