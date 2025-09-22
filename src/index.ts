@@ -6,6 +6,7 @@ import { pullRequestsCommand } from './commands/pullrequests';
 import { branchesCommand } from './commands/branches';
 import { commitsCommand } from './commands/commits';
 import { browseCommand } from './commands/browse';
+import { configCommand } from './commands/config';
 import { displayLoggedInUser } from './utils/token';
 import { setVerboseMode } from './utils/logger';
 import pkg from '../package.json'
@@ -25,7 +26,8 @@ program
   .addCommand(pullRequestsCommand)
   .addCommand(branchesCommand)
   .addCommand(commitsCommand)
-  .addCommand(browseCommand);
+  .addCommand(browseCommand)
+  .addCommand(configCommand);
 
 // Set up verbose mode and display logged-in user before executing any command
 program.hook('preAction', async (thisCommand) => {

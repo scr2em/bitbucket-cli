@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { getToken } from '../../utils/token';
+import { getToken, getDefaultWorkspace } from '../../utils/token';
 import { listWorkspaces, listProjects, listRepositoriesByProject, listPullRequests } from '../../services/bitbucket';
 import { selectWorkspace, selectProject, selectRepository, selectAction, selectPRState, selectPullRequest, selectPRAction } from '../../utils/interactive';
 import { cloneRepository, openInBrowser, openPullRequestInBrowser, displayPullRequestDetails } from '../../utils/actions';
@@ -10,6 +10,7 @@ const browseCommand = new Command('browse');
 
 browseCommand
   .description('Browse workspaces, projects, and repositories interactively')
+  .option('-w, --workspace <workspace>', 'Start with specific workspace (uses default if not specified)')
   .option('--admin', 'Show only repositories where user has admin access')
   .option('--member', 'Show only repositories where user has read access')
   .option('--contributor', 'Show only repositories where user has write access')
@@ -25,16 +26,54 @@ browseCommand
       
       const token = await getToken();
       
-      // Step 1: List and select workspace
-      const workspaces = await listWorkspaces(token);
+      // Step 1: Handle workspace selection
+      let selectedWorkspace;
       
-      if (workspaces.length === 0) {
-        consola.warn('No workspaces found.');
-        return;
+      if (options.workspace) {
+        // Use specified workspace
+        const workspaces = await listWorkspaces(token);
+        selectedWorkspace = workspaces.find(w => w.slug === options.workspace);
+        
+        if (!selectedWorkspace) {
+          consola.error(`Workspace '${options.workspace}' not found.`);
+          process.exit(1);
+        }
+        
+        logger.info(`Using specified workspace: ${selectedWorkspace.name} (${selectedWorkspace.slug})`);
+      } else {
+        // Check for default workspace first
+        const defaultWorkspaceSlug = getDefaultWorkspace();
+        
+        if (defaultWorkspaceSlug) {
+          // Use default workspace
+          const workspaces = await listWorkspaces(token);
+          selectedWorkspace = workspaces.find(w => w.slug === defaultWorkspaceSlug);
+          
+          if (selectedWorkspace) {
+            logger.info(`Using default workspace: ${selectedWorkspace.name} (${selectedWorkspace.slug})`);
+          } else {
+            consola.warn(`Default workspace '${defaultWorkspaceSlug}' not found. Please select a workspace.`);
+            // Fall back to interactive selection
+            if (workspaces.length === 0) {
+              consola.warn('No workspaces found.');
+              return;
+            }
+            selectedWorkspace = await selectWorkspace(workspaces);
+            logger.info(`Selected workspace: ${selectedWorkspace.name} (${selectedWorkspace.slug})`);
+          }
+        } else {
+          // No default workspace, show interactive selection
+          const workspaces = await listWorkspaces(token);
+          
+          if (workspaces.length === 0) {
+            consola.warn('No workspaces found.');
+            return;
+          }
+          
+          selectedWorkspace = await selectWorkspace(workspaces);
+          logger.info(`Selected workspace: ${selectedWorkspace.name} (${selectedWorkspace.slug})`);
+        }
       }
-      
-      const selectedWorkspace = await selectWorkspace(workspaces);
-      logger.info(`Selected workspace: ${selectedWorkspace.name} (${selectedWorkspace.slug})`);
       
       // Step 2: List and select project
       const projects = await listProjects(selectedWorkspace.slug, token);

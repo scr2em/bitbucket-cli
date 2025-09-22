@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import { listRepositories } from '../../../services/bitbucket';
-import { getToken } from '../../../utils/token';
+import { getToken, getDefaultWorkspace } from '../../../utils/token';
 import { selectRepository, selectAction } from '../../../utils/interactive';
 import { cloneRepository, openInBrowser } from '../../../utils/actions';
 import { consola } from 'consola';
@@ -9,7 +9,7 @@ const listRepos = new Command('list');
 
 listRepos
   .description('List repositories in a workspace')
-  .requiredOption('-w, --workspace <workspace>', 'Bitbucket workspace name')
+  .option('-w, --workspace <workspace>', 'Bitbucket workspace name (uses default if not specified)')
   .option('-f, --filter <filter>', 'Filter repositories by name (case insensitive)')
   .option('--admin', 'Show only repositories where user has admin access')
   .option('--member', 'Show only repositories where user has read access')
@@ -17,6 +17,14 @@ listRepos
   .option('--owner', 'Show only repositories owned by the user')
   .action(async (options) => {
     try {
+      // Use default workspace if not provided
+      const workspace = options.workspace || getDefaultWorkspace();
+      if (!workspace) {
+        consola.error('No workspace specified and no default workspace configured.');
+        consola.info('Please specify a workspace with -w/--workspace or set a default workspace.');
+        process.exit(1);
+      }
+      
       // Determine the role based on the options
       let role: string | undefined;
       if (options.admin) role = 'admin';
@@ -29,7 +37,7 @@ listRepos
       }
       
       const token = await getToken();
-      const repos = await listRepositories(options.workspace, token, role);
+      const repos = await listRepositories(workspace, token, role);
       
       let filteredRepos = repos;
       if (options.filter) {

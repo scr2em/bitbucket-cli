@@ -5,19 +5,71 @@ import * as readline from 'readline';
 import { consola } from 'consola';
 import { logger } from './logger';
 
-const TOKEN_FILE = path.join(os.homedir(), '.config', '.btoken');
+const CONFIG_FILE = path.join(os.homedir(), '.config', '.bitbucket-cli');
 
-export async function getToken(): Promise<string> {
+interface Config {
+  token?: string;
+  defaultWorkspace?: string;
+}
+
+function parseConfigFile(): Config {
   try {
-    // Check if token file exists
-    if (fs.existsSync(TOKEN_FILE)) {
-      const token = fs.readFileSync(TOKEN_FILE, 'utf8').trim();
-      if (token) {
-        return token;
-      }
+    if (fs.existsSync(CONFIG_FILE)) {
+      const content = fs.readFileSync(CONFIG_FILE, 'utf8');
+      const config: Config = {};
+      
+      content.split('\n').forEach(line => {
+        const trimmedLine = line.trim();
+        if (trimmedLine && !trimmedLine.startsWith('#')) {
+          const [key, ...valueParts] = trimmedLine.split('=');
+          if (key && valueParts.length > 0) {
+            const value = valueParts.join('=').trim();
+            if (key === 'token') {
+              config.token = value;
+            } else if (key === 'defaultWorkspace') {
+              config.defaultWorkspace = value;
+            }
+          }
+        }
+      });
+      
+      return config;
     }
   } catch (error) {
-    // File doesn't exist or can't be read, continue to prompt user
+    // File doesn't exist or can't be read, return empty config
+  }
+  
+  return {};
+}
+
+function saveConfig(config: Config): void {
+  try {
+    // Ensure .config directory exists
+    const configDir = path.dirname(CONFIG_FILE);
+    if (!fs.existsSync(configDir)) {
+      fs.mkdirSync(configDir, { recursive: true });
+    }
+    
+    let content = '# Bitbucket CLI Configuration\n';
+    if (config.token) {
+      content += `token=${config.token}\n`;
+    }
+    if (config.defaultWorkspace) {
+      content += `defaultWorkspace=${config.defaultWorkspace}\n`;
+    }
+    
+    fs.writeFileSync(CONFIG_FILE, content);
+  } catch (error) {
+    consola.error('Failed to save configuration:', error);
+    throw new Error('Could not save configuration to file');
+  }
+}
+
+export async function getToken(): Promise<string> {
+  const config = parseConfigFile();
+  
+  if (config.token) {
+    return config.token;
   }
 
   // Token doesn't exist, prompt user
@@ -28,22 +80,34 @@ export async function getToken(): Promise<string> {
   
   const token = await promptForToken();
   
-  // Save token to file
-  try {
-    // Ensure .config directory exists
-    const configDir = path.dirname(TOKEN_FILE);
-    if (!fs.existsSync(configDir)) {
-      fs.mkdirSync(configDir, { recursive: true });
-    }
-    
-    fs.writeFileSync(TOKEN_FILE, token);
-    consola.success('Credentials saved successfully!');
-  } catch (error) {
-    consola.error('Failed to save credentials:', error);
-    throw new Error('Could not save credentials to file');
-  }
+  // Save token to config file
+  saveConfig({ ...config, token });
+  consola.success('Credentials saved successfully!');
 
   return token;
+}
+
+export function getDefaultWorkspace(): string | undefined {
+  const config = parseConfigFile();
+  return config.defaultWorkspace;
+}
+
+export function setDefaultWorkspace(workspace: string): void {
+  const config = parseConfigFile();
+  config.defaultWorkspace = workspace;
+  saveConfig(config);
+  consola.success(`Default workspace set to: ${workspace}`);
+}
+
+export function removeDefaultWorkspace(): void {
+  const config = parseConfigFile();
+  if (config.defaultWorkspace) {
+    delete config.defaultWorkspace;
+    saveConfig(config);
+    consola.success('Default workspace removed successfully.');
+  } else {
+    consola.info('No default workspace is currently set.');
+  }
 }
 
 function promptForToken(): Promise<string> {
