@@ -4,7 +4,7 @@
   "description": "A CLI tool for interacting with Bitbucket repositories",
   "main": "dist/index.js",
   "bin": {
-    "bitbucket": "dist/index.js"
+    "bb": "dist/index.js"
   },
   "files": [
     "dist/**/*",

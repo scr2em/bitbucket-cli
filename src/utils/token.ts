@@ -73,9 +73,9 @@ export async function getToken(): Promise<string> {
   }
 
   // Token doesn't exist, prompt user
-  consola.info('Bitbucket credentials not found. Please provide your Bitbucket username and API token.');
+  consola.info('Bitbucket credentials not found. Tip: run `bitbucket login` for a guided setup.');
   consola.info('You can create an API token at: https://bitbucket.org/account/settings/api-tokens/');
-  consola.info('Format: username:api_token (e.g., john.doe:ATBBxxxxxxxxxxxx)');
+  consola.info('Format: email:api_token (e.g., jane@example.com:ATBBxxxxxxxxxxxx)');
   consola.info('Make sure the token has "Repositories: Read" permission.');
   
   const token = await promptForToken();
@@ -85,6 +85,13 @@ export async function getToken(): Promise<string> {
   consola.success('Credentials saved successfully!');
 
   return token;
+}
+
+/** Saves Bitbucket credentials (format: `email:api_token`) to the config file. */
+export function setToken(token: string): void {
+  const config = parseConfigFile();
+  config.token = token;
+  saveConfig(config);
 }
 
 export function getDefaultWorkspace(): string | undefined {
