@@ -3,6 +3,7 @@
 import { Command } from 'commander';
 import { reposCommand } from './commands/repos';
 import { pullRequestsCommand } from './commands/pullrequests';
+import { refsCommand } from './commands/refs';
 import { branchesCommand } from './commands/branches';
 import { commitsCommand } from './commands/commits';
 import { browseCommand } from './commands/browse';
@@ -24,6 +25,7 @@ program
 program
   .addCommand(reposCommand)
   .addCommand(pullRequestsCommand)
+  .addCommand(refsCommand)
   .addCommand(branchesCommand)
   .addCommand(commitsCommand)
   .addCommand(browseCommand)

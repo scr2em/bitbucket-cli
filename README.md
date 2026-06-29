@@ -127,6 +127,26 @@ machine-readable output.
 
 - `get`, `set --value <json>`, `delete` — each takes `--app-key <key> --name <name>`
 
+### Refs Management (`refs`)
+
+The `refs` command implements the [Bitbucket Cloud Refs REST
+API](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-refs/) (branches and
+tags). Same conventions as `pr`: `-w` falls back to the configured workspace, `-r` is the
+repository, and read commands accept `--json`.
+
+- `bitbucket refs list -r <repo>` - List all branches and tags (`-q/--query`, `--sort`, `-l/--limit`)
+
+**Branches** (`bitbucket refs branches <sub>`)
+
+- `list` (`-q`, `--sort`, `-l`), `get -n <name>`, `create -n <name> --from <target>`, `delete -n <name>` (`-y`)
+
+**Tags** (`bitbucket refs tags <sub>`)
+
+- `list` (`-q`, `--sort`, `-l`), `get -n <name>`, `create -n <name> --target <hash>` (`-m/--message`), `delete -n <name>` (`-y`)
+
+> Note: a separate stubbed `branches` command also exists; `refs branches` is the complete,
+> spec-backed implementation.
+
 ### Branch Management (`branches`)
 
 - `bitbucket branches list` - List branches for a repository
