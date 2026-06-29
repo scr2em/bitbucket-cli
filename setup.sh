@@ -4,13 +4,13 @@ echo "Setting up Bitbucket CLI..."
 
 # Install dependencies
 echo "Installing dependencies..."
-npm install
+pnpm install
 
 # Build the project
 echo "Building the project..."
-npm run build
+pnpm run build
 
 echo "Setup complete! You can now use the CLI with:"
-echo "  npm run dev -- repos list --workspace YOUR_WORKSPACE"
+echo "  pnpm run dev -- repos list --workspace YOUR_WORKSPACE"
 echo "  or"
 echo "  node dist/index.js repos list --workspace YOUR_WORKSPACE"

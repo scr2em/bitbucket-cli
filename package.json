@@ -15,7 +15,7 @@
     "dev": "ts-node src/index.ts",
     "start": "node dist/index.js",
     "generate:api": "swagger-typescript-api generate -p ./bitbucket-openapi.json -o ./src/api/generated -n bitbucket-api.ts --axios",
-    "prepare": "npm run build"
+    "prepare": "pnpm run build"
   },
   "keywords": [
     "bitbucket",
@@ -28,6 +28,7 @@
   ],
   "author": "",
   "license": "MIT",
+  "packageManager": "pnpm@10.26.2",
   "repository": {
     "type": "git",
     "url": "https://github.com/scr2em/bitbucket-cli.git"

@@ -14,8 +14,8 @@ A TypeScript CLI tool for interacting with Bitbucket repositories.
 ## Installation
 
 ```bash
-npm install
-npm run build
+pnpm install
+pnpm run build
 ```
 
 Or use the setup script:
@@ -144,29 +144,38 @@ repository, and read commands accept `--json`.
 
 - `list` (`-q`, `--sort`, `-l`), `get -n <name>`, `create -n <name> --target <hash>` (`-m/--message`), `delete -n <name>` (`-y`)
 
-> Note: a separate stubbed `branches` command also exists; `refs branches` is the complete,
-> spec-backed implementation.
+> Note: the same branch CRUD is also available under the `branches` command (which adds
+> branch restrictions and branching-model management). Both share one implementation.
 
 ### Branch Management (`branches`)
 
-- `bitbucket branches list` - List branches for a repository
-  - `--workspace, -w` - Bitbucket workspace name (required)
-  - `--repo, -r` - Repository name (required)
-  - `--main` - Show only main branch
-  - `--feature` - Show only feature branches
-  - `--merged` - Show only merged branches
+Covers every branch-related endpoint: branch CRUD (Refs API), branch restrictions, and
+the branching model. Same conventions as `pr`/`refs` (`-w` defaults to the configured
+workspace, `-r` is the repository, read commands accept `--json`).
 
-- `bitbucket branches create` - Create a new branch
-  - `--workspace, -w` - Bitbucket workspace name (required)
-  - `--repo, -r` - Repository name (required)
-  - `--name, -n` - Branch name (required)
-  - `--from, -f` - Source branch to create from (default: main)
+**Branch CRUD** (same as `refs branches`)
 
-- `bitbucket branches delete` - Delete a branch
-  - `--workspace, -w` - Bitbucket workspace name (required)
-  - `--repo, -r` - Repository name (required)
-  - `--name, -n` - Branch name to delete (required)
-  - `--force` - Force delete without confirmation
+- `bitbucket branches list -r <repo>` (`-q`, `--sort`, `-l`)
+- `bitbucket branches get -r <repo> -n <name>`
+- `bitbucket branches create -r <repo> -n <name> -f <target>`
+- `bitbucket branches delete -r <repo> -n <name>` (`-y`)
+
+**Branch restrictions** (`bitbucket branches restrictions <sub>`)
+
+- `list` (`--kind`, `--pattern`, `-l`), `get --id <id>`
+- `create` — `--kind <kind>` plus `--pattern`/`--branch-type`, `--value`, `--user` (repeatable),
+  `--group` (repeatable), or `--body <json>` for full control
+- `update --id <id>` (same flags or `--body`), `delete --id <id>` (`-y`)
+
+**Branching model** (`bitbucket branches model <sub>`)
+
+- `get` - active model for a repository
+- `effective` - effective (currently applied) model
+- `settings` - read the repository's model configuration
+- `update-settings --body <json>` - update the repository's model configuration
+- `project-get --project <key>` - model for a project
+- `project-settings --project <key>` - read a project's model configuration
+- `project-update-settings --project <key> --body <json>` - update a project's model configuration
 
 ### Commit Management (`commits`)
 
@@ -226,16 +235,16 @@ If you get a 401 error, make sure:
 
 ```bash
 # Install dependencies
-npm install
+pnpm install
 
 # Build the project
-npm run build
+pnpm run build
 
 # Run in development mode
-npm run dev
+pnpm run dev
 
 # Run the built CLI
-npm start
+pnpm start
 ```
 
 ### API client (generated)
@@ -247,7 +256,7 @@ the CLI fully-typed request/response models straight from Atlassian's source of 
 
 ```bash
 # Regenerate the client after updating bitbucket-openapi.json
-npm run generate:api
+pnpm run generate:api
 ```
 
 The generated file is committed so the project builds without running codegen. It is wired
