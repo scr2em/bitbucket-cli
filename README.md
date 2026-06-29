@@ -1,21 +1,34 @@
-# Bitbucket CLI
+# bitbucket-cli
 
-A TypeScript CLI tool for interacting with Bitbucket repositories.
+**The CLI Bitbucket never shipped — for everyone stuck on Bitbucket Cloud.**
 
-## Features
+If you've moved from GitHub and miss having a real `gh`-style command line, this is it. `bitbucket-cli`
+is built directly on Bitbucket's **official REST API** — the entire client is generated from Atlassian's
+published OpenAPI specification, so it tracks the official API surface 1:1 and stays correct as the API
+evolves. It's the closest thing to an official Bitbucket CLI.
 
-- List repositories in a Bitbucket workspace
-- Filter repositories by name (case insensitive)
-- Interactive repository selection
-- Clone repositories via SSH
-- Open repositories in browser
-- Secure token management
+> Independent, community-built, and not affiliated with Atlassian — but every request hits the official
+> `api.bitbucket.org` endpoints, typed straight from the official spec.
+
+## Highlights
+
+- **Complete Pull Requests API** — create, review (approve / request-changes / decline / merge), diff,
+  comments, tasks, statuses, activity, and more.
+- **Refs, branches & tags** — list/create/get/delete branches and tags.
+- **Branch governance** — branch restriction rules and the full branching model (repository and project).
+- **Repositories** — list across a workspace or everything you can access.
+- **Scriptable** — every read command supports `--json` for piping into `jq` and friends.
+- **Friendly** — sensible errors that surface Bitbucket's own messages, a configurable default workspace,
+  and confirmation guards on destructive actions (`-y` to skip).
 
 ## Installation
 
 ```bash
 pnpm install
 pnpm run build
+
+# install the `bitbucket` command globally
+pnpm link --global
 ```
 
 Or use the setup script:
@@ -24,242 +37,516 @@ Or use the setup script:
 ./setup.sh
 ```
 
-## Usage
+## Authentication
 
-### List repositories
+On first run the CLI prompts for your Bitbucket credentials and saves them to `~/.config/.bitbucket-cli`.
 
-```bash
-# Repository commands
-bitbucket repos list --workspace "your-workspace"
-bitbucket repos list --workspace "your-workspace" --admin --filter "react"
-bitbucket repos clone --workspace "your-workspace"
+Provide them as `email:api_token`. Create an API token at
+<https://bitbucket.org/account/settings/api-tokens/> and grant it the scopes for what you want to do
+(at least `Repositories: Read`; add write/admin scopes for creating PRs, merging, managing restrictions, etc.).
 
-# Pull request commands
-bitbucket pr list --workspace "your-workspace" --repo "my-repo"
-bitbucket pr create --workspace "your-workspace" --repo "my-repo" --source "feature" --destination "main"
+## Conventions
 
-# Branch commands
-bitbucket branches list --workspace "your-workspace" --repo "my-repo"
-bitbucket branches create --workspace "your-workspace" --repo "my-repo" --name "new-feature"
+These apply across the whole CLI:
 
-# Commit commands
-bitbucket commits list --workspace "your-workspace" --repo "my-repo" --limit 10
-bitbucket commits show --workspace "your-workspace" --repo "my-repo" --commit "abc123"
-```
+- **`-w, --workspace`** is optional everywhere — it falls back to your configured default workspace
+  (set one with `bitbucket config set-workspace`).
+- **`-r, --repo`** identifies the repository; **`-p, --pr <id>`** identifies a pull request.
+- **`--json`** on any read command prints raw JSON instead of the formatted view.
+- **`-y, --yes`** skips the confirmation prompt on destructive commands (delete, decline, merge).
+- Append **`--help`** to any command or subcommand for its full, authoritative option list.
 
-### First-time setup
+## Command reference
 
-On first run, the CLI will prompt you for your Bitbucket credentials and save them to `~/.config/.btoken`.
+_Generated from the live command tree. Run any command with `--help` for the same information._
 
-You need to provide your credentials in the format: `username:api_token`
+### `bitbucket repos` — Repository management commands
 
-You can create an API token at: https://bitbucket.org/account/settings/api-tokens/
+- `bitbucket repos list` — List repositories in a workspace
+  - `--json` — Output raw JSON
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `--all` — List every repository you can access, across all workspaces
+  - `-f, --filter <filter>` — Filter by name (case-insensitive substring, client-side)
+  - `-q, --query <query>` — Bitbucket filter expression (server-side; requires a role)
+  - `--sort <field>` — Sort field (e.g. -updated_on, name)
+  - `-l, --limit <n>` — Maximum repositories to fetch _(default: "50")_
+  - `--admin` — Only repositories where you have admin access
+  - `--member` — Only repositories where you have read access
+  - `--contributor` — Only repositories where you have write access
+  - `--owner` — Only repositories you own
 
-Make sure the token has "Repositories: Read" permission.
+### `bitbucket pr` — Pull request management commands
 
-## Commands
+- `bitbucket pr list` — List pull requests for a repository
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `--json` — Output raw JSON
+  - `--state <state>` — Filter by state (OPEN, MERGED, DECLINED, SUPERSEDED); repeatable
+  - `--all` — Include pull requests in every state
+  - `-q, --query <query>` — Bitbucket filter expression (e.g. 'author.nickname="jdoe"')
+  - `--sort <field>` — Sort field (e.g. -updated_on)
+  - `--commit <hash>` — Only list pull requests that contain this commit
+  - `-l, --limit <n>` — Maximum pull requests to fetch _(default: "25")_
+- `bitbucket pr authored` — List workspace pull requests authored by a user
+  - `--json` — Output raw JSON
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-u, --user <user>` **(required)** — Account id or UUID of the author
+  - `--state <state>` — Filter by state (OPEN, MERGED, DECLINED, SUPERSEDED); repeatable
+  - `--all` — Include pull requests in every state
+  - `-l, --limit <n>` — Maximum pull requests to fetch _(default: "25")_
+- `bitbucket pr get` — Show details of a pull request
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `-p, --pr <id>` **(required)** — Pull request id
+  - `--json` — Output raw JSON
+- `bitbucket pr create` — Create a new pull request
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `--json` — Output raw JSON
+  - `-s, --source <branch>` **(required)** — Source branch
+  - `-d, --destination <branch>` — Destination branch (defaults to the repository main branch)
+  - `-t, --title <title>` — Pull request title (prompted if omitted)
+  - `-m, --description <text>` — Pull request description
+  - `--reviewer <uuid>` — Reviewer account UUID; repeatable
+  - `--close-source-branch` — Close the source branch after merge
+  - `--draft` — Create the pull request as a draft
+- `bitbucket pr update` — Update a pull request (title, description, or destination branch)
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `-p, --pr <id>` **(required)** — Pull request id
+  - `--json` — Output raw JSON
+  - `-t, --title <title>` — New title
+  - `-m, --description <text>` — New description
+  - `-d, --destination <branch>` — New destination branch
+- `bitbucket pr approve` — Approve a pull request
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `-p, --pr <id>` **(required)** — Pull request id
+- `bitbucket pr unapprove` — Remove your approval from a pull request
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `-p, --pr <id>` **(required)** — Pull request id
+- `bitbucket pr request-changes` — Request changes on a pull request
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `-p, --pr <id>` **(required)** — Pull request id
+- `bitbucket pr unrequest-changes` — Remove your change request from a pull request
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `-p, --pr <id>` **(required)** — Pull request id
+- `bitbucket pr decline` — Decline (reject) a pull request
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `-p, --pr <id>` **(required)** — Pull request id
+  - `--json` — Output raw JSON
+  - `-y, --yes` — Skip confirmation
+- `bitbucket pr merge` — Merge a pull request
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `-p, --pr <id>` **(required)** — Pull request id
+  - `--json` — Output raw JSON
+  - `--strategy <strategy>` — Merge strategy (merge_commit, squash, fast_forward, squash_fast_forward, rebase_fast_forward, rebase_merge)
+  - `-m, --message <message>` — Commit message for the merge
+  - `--close-source-branch` — Close the source branch after merging
+  - `-y, --yes` — Skip confirmation
+- `bitbucket pr merge-status` — Check the status of an asynchronous merge task
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `-p, --pr <id>` **(required)** — Pull request id
+  - `--json` — Output raw JSON
+  - `--task <id>` **(required)** — Merge task id returned by an async merge
+- `bitbucket pr diff` — View the diff for a pull request
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `-p, --pr <id>` **(required)** — Pull request id
+  - `--raw` — Print the raw unified diff instead of the rich split view
+- `bitbucket pr patch` — Print the patch (diff with commit metadata) for a pull request
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `-p, --pr <id>` **(required)** — Pull request id
+- `bitbucket pr diffstat` — Show the per-file change summary for a pull request
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `-p, --pr <id>` **(required)** — Pull request id
+  - `--json` — Output raw JSON
+- `bitbucket pr commits` — List the commits in a pull request
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `-p, --pr <id>` **(required)** — Pull request id
+  - `--json` — Output raw JSON
+- `bitbucket pr conflicts` — List file conflicts for a pull request
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `-p, --pr <id>` **(required)** — Pull request id
+  - `--json` — Output raw JSON
+- `bitbucket pr statuses` — List build/commit statuses for a pull request
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `-p, --pr <id>` **(required)** — Pull request id
+  - `--json` — Output raw JSON
+- `bitbucket pr activity` — Show the activity log for a pull request, or the whole repository
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `--json` — Output raw JSON
+  - `-p, --pr <id>` — Pull request id (omit for repository-wide activity)
 
-### Repository Management (`repos`)
+#### `bitbucket pr comments`
 
-- `bitbucket repos list` - List repositories in a workspace
-  - `--workspace, -w` - Bitbucket workspace name (required)
-  - `--filter, -f` - Filter repositories by name (optional)
-  - `--admin` - Show only repositories where user has admin access
-  - `--member` - Show only repositories where user has read access
-  - `--contributor` - Show only repositories where user has write access
-  - `--owner` - Show only repositories owned by the user
+- `bitbucket pr comments list` — List comments on a pull request
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `-p, --pr <id>` **(required)** — Pull request id
+  - `--json` — Output raw JSON
+  - `-l, --limit <n>` — Maximum comments to fetch _(default: "50")_
+- `bitbucket pr comments get` — Show a single comment
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `-p, --pr <id>` **(required)** — Pull request id
+  - `--json` — Output raw JSON
+  - `-c, --comment <id>` **(required)** — Comment id
+- `bitbucket pr comments add` — Add a comment to a pull request (optionally inline or as a reply)
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `-p, --pr <id>` **(required)** — Pull request id
+  - `--json` — Output raw JSON
+  - `-m, --message <text>` — Comment text (opens $EDITOR if omitted)
+  - `--path <file>` — File path for an inline comment
+  - `--line <n>` — Line number for an inline comment (with --path)
+  - `--parent <id>` — Reply to an existing comment id
+- `bitbucket pr comments update` — Edit a comment
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `-p, --pr <id>` **(required)** — Pull request id
+  - `--json` — Output raw JSON
+  - `-c, --comment <id>` **(required)** — Comment id
+  - `-m, --message <text>` — New comment text (opens $EDITOR if omitted)
+- `bitbucket pr comments delete` — Delete a comment
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `-p, --pr <id>` **(required)** — Pull request id
+  - `-c, --comment <id>` **(required)** — Comment id
+  - `-y, --yes` — Skip confirmation
+- `bitbucket pr comments resolve` — Resolve a comment thread
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `-p, --pr <id>` **(required)** — Pull request id
+  - `-c, --comment <id>` **(required)** — Comment id
+- `bitbucket pr comments reopen` — Reopen a resolved comment thread
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `-p, --pr <id>` **(required)** — Pull request id
+  - `-c, --comment <id>` **(required)** — Comment id
 
-- `bitbucket repos clone` - Clone a repository from a workspace
-  - `--workspace, -w` - Bitbucket workspace name (required)
-  - `--repo, -r` - Repository name to clone (optional, shows interactive list if not provided)
-  - `--admin`, `--member`, `--contributor`, `--owner` - Role filters
+#### `bitbucket pr tasks`
 
-### Pull Request Management (`pr`)
+- `bitbucket pr tasks list` — List tasks on a pull request
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `-p, --pr <id>` **(required)** — Pull request id
+  - `--json` — Output raw JSON
+  - `-l, --limit <n>` — Maximum tasks to fetch _(default: "50")_
+- `bitbucket pr tasks get` — Show a single task
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `-p, --pr <id>` **(required)** — Pull request id
+  - `--json` — Output raw JSON
+  - `-t, --task <id>` **(required)** — Task id
+- `bitbucket pr tasks add` — Create a task on a pull request
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `-p, --pr <id>` **(required)** — Pull request id
+  - `--json` — Output raw JSON
+  - `-m, --message <text>` — Task text (opens $EDITOR if omitted)
+  - `--comment <id>` — Attach the task to an existing comment id
+- `bitbucket pr tasks update` — Update a task (edit text or change its state)
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `-p, --pr <id>` **(required)** — Pull request id
+  - `--json` — Output raw JSON
+  - `-t, --task <id>` **(required)** — Task id
+  - `-m, --message <text>` — New task text
+  - `--resolve` — Mark the task as resolved
+  - `--reopen` — Mark the task as unresolved
+- `bitbucket pr tasks delete` — Delete a task
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `-p, --pr <id>` **(required)** — Pull request id
+  - `-t, --task <id>` **(required)** — Task id
+  - `-y, --yes` — Skip confirmation
 
-The `pr` command implements every action in the [Bitbucket Cloud Pull Requests REST
-API](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/).
-The client is generated from the official OpenAPI spec (see
-[API client](#api-client-generated)).
+#### `bitbucket pr properties`
 
-Common options: `-w, --workspace` (falls back to the configured default), `-r, --repo`,
-and `-p, --pr <id>` for pull-request-scoped commands. Read commands accept `--json` for
-machine-readable output.
+- `bitbucket pr properties get` — Get a pull request application property
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `-p, --pr <id>` **(required)** — Pull request id
+  - `--json` — Output raw JSON
+  - `--app-key <key>` **(required)** — Connect app key
+  - `--name <name>` **(required)** — Property name
+- `bitbucket pr properties set` — Create or update a pull request application property
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `-p, --pr <id>` **(required)** — Pull request id
+  - `--app-key <key>` **(required)** — Connect app key
+  - `--name <name>` **(required)** — Property name
+  - `--value <json>` **(required)** — Property value as a JSON object
+- `bitbucket pr properties delete` — Delete a pull request application property
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `-p, --pr <id>` **(required)** — Pull request id
+  - `--app-key <key>` **(required)** — Connect app key
+  - `--name <name>` **(required)** — Property name
+  - `-y, --yes` — Skip confirmation
 
-**Core**
+### `bitbucket refs` — Branch and tag (refs) management commands
 
-- `bitbucket pr list -r <repo>` - List pull requests
-  - `--state <state>` (repeatable), `--all`, `-q/--query`, `--sort`, `-l/--limit`
-  - `--commit <hash>` - only PRs that contain a commit
-- `bitbucket pr authored -u <user>` - List workspace PRs authored by a user
-- `bitbucket pr get -r <repo> -p <id>` - Show a pull request
-- `bitbucket pr create -r <repo> -s <source>` - Create a pull request
-  - `-d/--destination`, `-t/--title`, `-m/--description`, `--reviewer <uuid>` (repeatable), `--close-source-branch`, `--draft`
-- `bitbucket pr update -r <repo> -p <id>` - Update title/description/destination
+- `bitbucket refs list` — List all branches and tags
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `--json` — Output raw JSON
+  - `-q, --query <query>` — Bitbucket filter expression
+  - `--sort <field>` — Sort field (e.g. name)
+  - `-l, --limit <n>` — Maximum refs to fetch _(default: "50")_
 
-**Review actions**
+#### `bitbucket refs branches`
 
-- `bitbucket pr approve` / `unapprove`
-- `bitbucket pr request-changes` / `unrequest-changes`
-- `bitbucket pr decline` - Decline a pull request (`-y` to skip confirmation)
-- `bitbucket pr merge` - Merge (`--strategy`, `-m/--message`, `--close-source-branch`, `-y`)
-- `bitbucket pr merge-status --task <id>` - Poll an async merge task
+- `bitbucket refs branches list` — List branches
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `--json` — Output raw JSON
+  - `-q, --query <query>` — Bitbucket filter expression (e.g. 'name ~ "release"')
+  - `--sort <field>` — Sort field (e.g. name, -target.date)
+  - `-l, --limit <n>` — Maximum branches to fetch _(default: "50")_
+- `bitbucket refs branches get` — Show a branch
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `--json` — Output raw JSON
+  - `-n, --name <name>` **(required)** — Branch name
+- `bitbucket refs branches create` — Create a branch
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `--json` — Output raw JSON
+  - `-n, --name <name>` **(required)** — New branch name
+  - `--from <target>` **(required)** — Source commit hash or branch name to branch from
+- `bitbucket refs branches delete` — Delete a branch
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `-n, --name <name>` **(required)** — Branch name
+  - `-y, --yes` — Skip confirmation
 
-**Content**
+#### `bitbucket refs tags`
 
-- `bitbucket pr diff` - Rich split-diff view (`--raw` for plain unified diff)
-- `bitbucket pr patch` - Print the patch (diff + commit metadata)
-- `bitbucket pr diffstat` - Per-file change summary
-- `bitbucket pr commits` - Commits in the pull request
-- `bitbucket pr conflicts` - File conflicts
-- `bitbucket pr statuses` - Build/commit statuses
-- `bitbucket pr activity` - Activity log (omit `-p` for repository-wide activity)
+- `bitbucket refs tags list` — List tags
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `--json` — Output raw JSON
+  - `-q, --query <query>` — Bitbucket filter expression (e.g. 'name ~ "v1"')
+  - `--sort <field>` — Sort field (e.g. name, -target.date)
+  - `-l, --limit <n>` — Maximum tags to fetch _(default: "50")_
+- `bitbucket refs tags get` — Show a tag
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `--json` — Output raw JSON
+  - `-n, --name <name>` **(required)** — Tag name
+- `bitbucket refs tags create` — Create a tag
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `--json` — Output raw JSON
+  - `-n, --name <name>` **(required)** — New tag name
+  - `--target <hash>` **(required)** — Commit hash the tag points to
+  - `-m, --message <text>` — Annotation message
+- `bitbucket refs tags delete` — Delete a tag
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `-n, --name <name>` **(required)** — Tag name
+  - `-y, --yes` — Skip confirmation
 
-**Comments** (`bitbucket pr comments <sub>`)
+### `bitbucket branches` — Branch management: branches, restrictions, and branching model
 
-- `list`, `get -c <id>`, `add` (`-m`, `--path`/`--line` for inline, `--parent` for replies),
-  `update -c <id>`, `delete -c <id>`, `resolve -c <id>`, `reopen -c <id>`
+- `bitbucket branches list` — List branches
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `--json` — Output raw JSON
+  - `-q, --query <query>` — Bitbucket filter expression (e.g. 'name ~ "release"')
+  - `--sort <field>` — Sort field (e.g. name, -target.date)
+  - `-l, --limit <n>` — Maximum branches to fetch _(default: "50")_
+- `bitbucket branches get` — Show a branch
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `--json` — Output raw JSON
+  - `-n, --name <name>` **(required)** — Branch name
+- `bitbucket branches create` — Create a branch
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `--json` — Output raw JSON
+  - `-n, --name <name>` **(required)** — New branch name
+  - `-f, --from <target>` **(required)** — Source commit hash or branch name to branch from
+- `bitbucket branches delete` — Delete a branch
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `-n, --name <name>` **(required)** — Branch name
+  - `-y, --yes` — Skip confirmation
 
-**Tasks** (`bitbucket pr tasks <sub>`)
+#### `bitbucket branches restrictions`
 
-- `list`, `get -t <id>`, `add` (`-m`, `--comment`), `update -t <id>` (`-m`, `--resolve`/`--reopen`), `delete -t <id>`
+- `bitbucket branches restrictions list` — List branch restriction rules
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `--json` — Output raw JSON
+  - `--kind <kind>` — Filter by restriction kind
+  - `--pattern <pattern>` — Filter by branch pattern
+  - `-l, --limit <n>` — Maximum rules to fetch _(default: "50")_
+- `bitbucket branches restrictions get` — Show a branch restriction rule
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `--json` — Output raw JSON
+  - `--id <id>` **(required)** — Restriction rule id
+- `bitbucket branches restrictions create` — Create a branch restriction rule
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `--json` — Output raw JSON
+  - `--kind <kind>` — Restriction kind (e.g. push, force, delete, require_approvals_to_merge)
+  - `--pattern <glob>` — Branch glob pattern (glob match)
+  - `--branch-type <type>` — Branch type for branching_model match (e.g. development, production)
+  - `--value <n>` — Numeric value (e.g. number of required approvals)
+  - `--user <uuid>` — Exempt user UUID; repeatable
+  - `--group <slug>` — Exempt group slug; repeatable
+  - `--body <json>` — Full restriction body as JSON (overrides the flags above)
+- `bitbucket branches restrictions update` — Update a branch restriction rule
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `--json` — Output raw JSON
+  - `--kind <kind>` — Restriction kind (e.g. push, force, delete, require_approvals_to_merge)
+  - `--pattern <glob>` — Branch glob pattern (glob match)
+  - `--branch-type <type>` — Branch type for branching_model match (e.g. development, production)
+  - `--value <n>` — Numeric value (e.g. number of required approvals)
+  - `--user <uuid>` — Exempt user UUID; repeatable
+  - `--group <slug>` — Exempt group slug; repeatable
+  - `--body <json>` — Full restriction body as JSON (overrides the flags above)
+  - `--id <id>` **(required)** — Restriction rule id
+- `bitbucket branches restrictions delete` — Delete a branch restriction rule
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `--id <id>` **(required)** — Restriction rule id
+  - `-y, --yes` — Skip confirmation
 
-**Application properties** (`bitbucket pr properties <sub>`, for Connect apps)
+#### `bitbucket branches model`
 
-- `get`, `set --value <json>`, `delete` — each takes `--app-key <key> --name <name>`
+- `bitbucket branches model get` — Get the active branching model for a repository
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `--json` — Output raw JSON
+- `bitbucket branches model effective` — Get the effective (currently applied) branching model for a repository
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `--json` — Output raw JSON
+- `bitbucket branches model settings` — Get the branching model configuration for a repository
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `--json` — Output raw JSON
+- `bitbucket branches model update-settings` — Update the branching model configuration for a repository
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `--json` — Output raw JSON
+  - `--body <json>` **(required)** — Settings body as JSON (development, production, branch_types, default_branch_deletion)
+- `bitbucket branches model project-get` — Get the branching model for a project
+  - `--json` — Output raw JSON
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `--project <key>` **(required)** — Project key
+- `bitbucket branches model project-settings` — Get the branching model configuration for a project
+  - `--json` — Output raw JSON
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `--project <key>` **(required)** — Project key
+- `bitbucket branches model project-update-settings` — Update the branching model configuration for a project
+  - `--json` — Output raw JSON
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
+  - `--project <key>` **(required)** — Project key
+  - `--body <json>` **(required)** — Settings body as JSON
 
-### Refs Management (`refs`)
+### `bitbucket commits` — Commit management commands
 
-The `refs` command implements the [Bitbucket Cloud Refs REST
-API](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-refs/) (branches and
-tags). Same conventions as `pr`: `-w` falls back to the configured workspace, `-r` is the
-repository, and read commands accept `--json`.
+- `bitbucket commits list` — List commits for a repository or branch
+  - `-w, --workspace <workspace>` — Bitbucket workspace name (uses default if not specified)
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `-b, --branch <branch>` — Branch name (defaults to main)
+  - `-l, --limit <limit>` — Number of commits to show _(default: "20")_
+  - `--author <author>` — Filter by author
+  - `--since <since>` — Show commits since date (YYYY-MM-DD)
+- `bitbucket commits show` — Show details of a specific commit
+  - `-w, --workspace <workspace>` **(required)** — Bitbucket workspace name
+  - `-r, --repo <repo>` **(required)** — Repository name
+  - `-c, --commit <commit>` **(required)** — Commit hash or short hash
+  - `--diff` — Show the diff for the commit
+  - `--stat` — Show file statistics for the commit
 
-- `bitbucket refs list -r <repo>` - List all branches and tags (`-q/--query`, `--sort`, `-l/--limit`)
+### `bitbucket browse` — Browse workspaces, projects, and repositories interactively
 
-**Branches** (`bitbucket refs branches <sub>`)
+- `bitbucket browse` — Browse workspaces, projects, and repositories interactively
+  - `-w, --workspace <workspace>` — Start with specific workspace (uses default if not specified)
+  - `--admin` — Show only repositories where user has admin access
+  - `--member` — Show only repositories where user has read access
+  - `--contributor` — Show only repositories where user has write access
+  - `--owner` — Show only repositories owned by the user
 
-- `list` (`-q`, `--sort`, `-l`), `get -n <name>`, `create -n <name> --from <target>`, `delete -n <name>` (`-y`)
+### `bitbucket config` — Manage CLI configuration settings
 
-**Tags** (`bitbucket refs tags <sub>`)
+- `bitbucket config set-workspace` — Set the default workspace
+  - `-w, --workspace <workspace>` — Workspace name to set as default
+- `bitbucket config remove-workspace` — Remove the default workspace
+  - `-y, --yes` — Skip confirmation prompt
+- `bitbucket config show` — Show current configuration
 
-- `list` (`-q`, `--sort`, `-l`), `get -n <name>`, `create -n <name> --target <hash>` (`-m/--message`), `delete -n <name>` (`-y`)
-
-> Note: the same branch CRUD is also available under the `branches` command (which adds
-> branch restrictions and branching-model management). Both share one implementation.
-
-### Branch Management (`branches`)
-
-Covers every branch-related endpoint: branch CRUD (Refs API), branch restrictions, and
-the branching model. Same conventions as `pr`/`refs` (`-w` defaults to the configured
-workspace, `-r` is the repository, read commands accept `--json`).
-
-**Branch CRUD** (same as `refs branches`)
-
-- `bitbucket branches list -r <repo>` (`-q`, `--sort`, `-l`)
-- `bitbucket branches get -r <repo> -n <name>`
-- `bitbucket branches create -r <repo> -n <name> -f <target>`
-- `bitbucket branches delete -r <repo> -n <name>` (`-y`)
-
-**Branch restrictions** (`bitbucket branches restrictions <sub>`)
-
-- `list` (`--kind`, `--pattern`, `-l`), `get --id <id>`
-- `create` — `--kind <kind>` plus `--pattern`/`--branch-type`, `--value`, `--user` (repeatable),
-  `--group` (repeatable), or `--body <json>` for full control
-- `update --id <id>` (same flags or `--body`), `delete --id <id>` (`-y`)
-
-**Branching model** (`bitbucket branches model <sub>`)
-
-- `get` - active model for a repository
-- `effective` - effective (currently applied) model
-- `settings` - read the repository's model configuration
-- `update-settings --body <json>` - update the repository's model configuration
-- `project-get --project <key>` - model for a project
-- `project-settings --project <key>` - read a project's model configuration
-- `project-update-settings --project <key> --body <json>` - update a project's model configuration
-
-### Commit Management (`commits`)
-
-- `bitbucket commits list` - List commits for a repository or branch
-  - `--workspace, -w` - Bitbucket workspace name (required)
-  - `--repo, -r` - Repository name (required)
-  - `--branch, -b` - Branch name (defaults to main)
-  - `--limit, -l` - Number of commits to show (default: 20)
-  - `--author` - Filter by author
-  - `--since` - Show commits since date (YYYY-MM-DD)
-
-- `bitbucket commits show` - Show details of a specific commit
-  - `--workspace, -w` - Bitbucket workspace name (required)
-  - `--repo, -r` - Repository name (required)
-  - `--commit, -c` - Commit hash or short hash (required)
-  - `--diff` - Show the diff for the commit
-  - `--stat` - Show file statistics for the commit
-
-## Interactive Features
-
-After listing repositories, you can:
-1. Select a repository from the interactive list
-2. Choose an action:
-   - **Clone (SSH)**: Clone the repository using SSH
-   - **Open in browser**: Open the repository in your default browser
+> **Note:** the `commits` and `browse` commands predate the generated client. `browse` offers an
+> interactive workspace → project → repository → pull request explorer; `commits` is still being
+> wired to the API.
 
 ## Requirements
 
 - Node.js 16+
-- Git (for cloning repositories)
-- SSH key configured for Bitbucket (for cloning)
+- Git and an SSH key configured for Bitbucket (for cloning)
+- `git-split-diffs` is bundled and powers the rich `pr diff` view
 
 ## Troubleshooting
 
-### 401 Unauthorized Error
+### 401 Unauthorized
 
-If you get a 401 error, make sure:
+If you get a 401, check that:
 
-1. **Correct format**: Use `username:api_token` format
-2. **Valid username**: Use your Bitbucket username, not email address
-3. **Valid API token**: Ensure your API token is correct and not expired
-4. **Token permissions**: Ensure your API token has `Repositories: Read` permission
-5. **Test with cURL**: 
+1. You used the `email:api_token` format (not a password).
+2. Your API token is current — tokens expire; create a new one if needed.
+3. The token has the scopes the command needs (read for listing, write/admin for mutations).
+4. Test directly:
    ```bash
-   curl -u username:api_token https://api.bitbucket.org/2.0/repositories/your-workspace
+   curl -u email:api_token https://api.bitbucket.org/2.0/workspaces
    ```
 
-### Common Issues
-
-- **Wrong username**: Use your Bitbucket username (e.g., `john.doe`), not your email
-- **Expired token**: API tokens can expire, create a new one if needed
-- **Missing permissions**: API token needs repository read access
-- **Invalid workspace**: Make sure the workspace name is correct (case-sensitive)
-- **Wrong format**: Make sure you're using `username:api_token` format
+To replace stored credentials, delete `~/.config/.bitbucket-cli` and run any command to be prompted again.
 
 ## Development
 
 ```bash
-# Install dependencies
-pnpm install
-
-# Build the project
-pnpm run build
-
-# Run in development mode
-pnpm run dev
-
-# Run the built CLI
-pnpm start
+pnpm install      # install dependencies
+pnpm run build    # compile to dist/
+pnpm run dev      # run from source via ts-node
+pnpm start        # run the built CLI
 ```
 
 ### API client (generated)
 
-The Bitbucket REST client in `src/api/generated/bitbucket-api.ts` is generated from the
-vendored OpenAPI spec (`bitbucket-openapi.json`) using
-[`swagger-typescript-api`](https://github.com/acacode/swagger-typescript-api). This gives
-the CLI fully-typed request/response models straight from Atlassian's source of truth.
+The Bitbucket REST client in `src/api/generated/bitbucket-api.ts` is generated from the vendored OpenAPI
+spec (`bitbucket-openapi.json`) using
+[`swagger-typescript-api`](https://github.com/acacode/swagger-typescript-api), giving the CLI fully-typed
+request/response models straight from Atlassian's source of truth.
 
 ```bash
 # Regenerate the client after updating bitbucket-openapi.json
 pnpm run generate:api
 ```
 
-The generated file is committed so the project builds without running codegen. It is wired
-up in `src/api/client.ts` (auth, pagination, query serialization, friendly errors); commands
-talk to the thin facade in `src/services/pullrequests.ts` rather than the generated methods
-directly.
+The generated file is committed so the project builds without running codegen. It is wired up in
+`src/api/client.ts` (auth, pagination, query serialization, friendly errors); commands talk to thin
+service facades in `src/services/*` rather than the generated methods directly.
+
+## License
+
+MIT

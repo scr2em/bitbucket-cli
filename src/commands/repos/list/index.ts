@@ -1,68 +1,52 @@
 import { Command } from 'commander';
-import { listRepositories } from '../../../services/bitbucket';
-import { getToken, getDefaultWorkspace } from '../../../utils/token';
-import { selectRepository, selectAction } from '../../../utils/interactive';
-import { cloneRepository, openInBrowser } from '../../../utils/actions';
 import { consola } from 'consola';
+import { addJsonOption, runAction, resolveWorkspace } from '../../../utils/command';
+import { getApi } from '../../../api/client';
+import * as repositories from '../../../services/repositories';
+import { printJson } from '../../../utils/pr-format';
+import { printRepositoryList } from '../../../utils/repo-format';
 
-const listRepos = new Command('list');
+const listCommand = new Command('list');
 
-listRepos
+function resolveRole(options: { admin?: boolean; member?: boolean; contributor?: boolean; owner?: boolean }): repositories.Role | undefined {
+  if (options.admin) return 'admin';
+  if (options.member) return 'member';
+  if (options.contributor) return 'contributor';
+  if (options.owner) return 'owner';
+  return undefined;
+}
+
+addJsonOption(listCommand)
   .description('List repositories in a workspace')
-  .option('-w, --workspace <workspace>', 'Bitbucket workspace name (uses default if not specified)')
-  .option('-f, --filter <filter>', 'Filter repositories by name (case insensitive)')
-  .option('--admin', 'Show only repositories where user has admin access')
-  .option('--member', 'Show only repositories where user has read access')
-  .option('--contributor', 'Show only repositories where user has write access')
-  .option('--owner', 'Show only repositories owned by the user')
-  .action(async (options) => {
-    try {
-      // Use default workspace if not provided
-      const workspace = options.workspace || getDefaultWorkspace();
-      if (!workspace) {
-        consola.error('No workspace specified and no default workspace configured.');
-        consola.info('Please specify a workspace with -w/--workspace or set a default workspace.');
-        process.exit(1);
-      }
-      
-      // Determine the role based on the options
-      let role: string | undefined;
-      if (options.admin) role = 'admin';
-      else if (options.member) role = 'member';
-      else if (options.contributor) role = 'contributor';
-      else if (options.owner) role = 'owner';
-      
-      if (role) {
-        consola.info(`Filtering repositories by role: ${role}`);
-      }
-      
-      const token = await getToken();
-      const repos = await listRepositories(workspace, token, role);
-      
-      let filteredRepos = repos;
+  .option('-w, --workspace <workspace>', 'Bitbucket workspace (uses configured default if omitted)')
+  .option('--all', 'List every repository you can access, across all workspaces')
+  .option('-f, --filter <filter>', 'Filter by name (case-insensitive substring, client-side)')
+  .option('-q, --query <query>', 'Bitbucket filter expression (server-side; requires a role)')
+  .option('--sort <field>', 'Sort field (e.g. -updated_on, name)')
+  .option('-l, --limit <n>', 'Maximum repositories to fetch', '50')
+  .option('--admin', 'Only repositories where you have admin access')
+  .option('--member', 'Only repositories where you have read access')
+  .option('--contributor', 'Only repositories where you have write access')
+  .option('--owner', 'Only repositories you own')
+  .action(
+    runAction(async (options) => {
+      const role = resolveRole(options);
+      const listOptions = { role, query: options.query, sort: options.sort, limit: Number(options.limit) || undefined };
+
+      const api = await getApi();
+      let repos = options.all
+        ? await repositories.listAccessibleRepositories(api, listOptions)
+        : await repositories.listRepositories(api, resolveWorkspace(options.workspace), listOptions);
+
       if (options.filter) {
-        const filterLower = options.filter.toLowerCase();
-        filteredRepos = repos.filter(repo => 
-          repo.name.toLowerCase().includes(filterLower)
-        );
+        const needle = options.filter.toLowerCase();
+        repos = repos.filter((repo) => (repo.name ?? '').toLowerCase().includes(needle));
       }
 
-      if (filteredRepos.length === 0) {
-        consola.warn('No repositories found matching the criteria.');
-        return;
-      }
-      const selectedRepo = await selectRepository(filteredRepos);
-      const action = await selectAction();
-      
-      if (action === 'clone') {
-        await cloneRepository(selectedRepo);
-      } else if (action === 'open') {
-        await openInBrowser(selectedRepo);
-      }
-    } catch (error) {
-      consola.error('Error:', error instanceof Error ? error.message : 'Unknown error');
-      process.exit(1);
-    }
-  });
+      if (options.json) return printJson(repos);
+      if (repos.length === 0) return consola.info('No repositories found matching the criteria.');
+      printRepositoryList(repos);
+    }),
+  );
 
-export { listRepos as listCommand };
+export { listCommand };
