@@ -13,7 +13,26 @@ export interface ColumnSpec {
   align?: 'left' | 'right';
 }
 
-export type Cell = string | number | null | undefined;
+/**
+ * A cell is a plain value, or an object pairing a value with a colorizer.
+ * Column widths are always measured on the plain text, so ANSI color codes
+ * (which are zero-width) never break alignment.
+ */
+export type Cell =
+  | string
+  | number
+  | null
+  | undefined
+  | { value: string | number | null | undefined; color?: (text: string) => string };
+
+function cellText(cell: Cell): string {
+  const value = cell && typeof cell === 'object' ? cell.value : cell;
+  return value === null || value === undefined ? '' : String(value);
+}
+
+function cellColor(cell: Cell): ((text: string) => string) | undefined {
+  return cell && typeof cell === 'object' ? cell.color : undefined;
+}
 
 function truncate(value: string, max?: number): string {
   if (!max || value.length <= max) return value;
@@ -21,32 +40,38 @@ function truncate(value: string, max?: number): string {
   return `${value.slice(0, max - 1)}…`;
 }
 
-function pad(value: string, width: number, align: 'left' | 'right'): string {
-  const gap = width - value.length;
-  if (gap <= 0) return value;
-  return align === 'right' ? ' '.repeat(gap) + value : value + ' '.repeat(gap);
-}
-
 /** Renders an aligned, bordered table as a single string. */
 export function renderTable(columns: ColumnSpec[], rows: Cell[][]): string {
-  const cells = rows.map((row) =>
-    columns.map((col, i) => truncate(row[i] === null || row[i] === undefined ? '' : String(row[i]), col.max)),
-  );
+  // Plain (uncolored) text per cell, used for width and padding math.
+  const texts = rows.map((row) => columns.map((col, i) => truncate(cellText(row[i]), col.max)));
 
   const widths = columns.map((col, i) =>
-    cells.reduce((max, row) => Math.max(max, row[i].length), col.header.length),
+    texts.reduce((max, row) => Math.max(max, row[i].length), col.header.length),
   );
+
+  const renderCell = (text: string, width: number, align: 'left' | 'right', color?: (t: string) => string) => {
+    const gap = Math.max(0, width - text.length);
+    const body = color ? color(text) : text;
+    const padding = ' '.repeat(gap);
+    return align === 'right' ? padding + body : body + padding;
+  };
 
   const border = (left: string, mid: string, right: string) =>
     left + widths.map((w) => '─'.repeat(w + 2)).join(mid) + right;
-  const rowLine = (values: string[]) =>
-    '│' + values.map((value, i) => ` ${pad(value, widths[i], columns[i].align ?? 'left')} `).join('│') + '│';
+  const headerLine =
+    '│' + columns.map((c, i) => ` ${renderCell(c.header, widths[i], c.align ?? 'left')} `).join('│') + '│';
+  const dataLine = (rowIndex: number) =>
+    '│' +
+    columns
+      .map((col, i) => ` ${renderCell(texts[rowIndex][i], widths[i], col.align ?? 'left', cellColor(rows[rowIndex][i]))} `)
+      .join('│') +
+    '│';
 
   const lines = [
     border('┌', '┬', '┐'),
-    rowLine(columns.map((c) => c.header)),
+    headerLine,
     border('├', '┼', '┤'),
-    ...cells.map((row) => rowLine(row)),
+    ...rows.map((_, r) => dataLine(r)),
     border('└', '┴', '┘'),
   ];
   return lines.join('\n');

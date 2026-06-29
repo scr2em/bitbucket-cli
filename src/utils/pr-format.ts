@@ -1,5 +1,6 @@
 import { consola } from 'consola';
-import { renderTable } from './table';
+import { renderTable, Cell } from './table';
+import { colorForUser } from './colors';
 import type {
   Pullrequest,
   Comment,
@@ -35,6 +36,11 @@ function authorName(account?: { display_name?: string; nickname?: string }): str
   return account?.display_name || account?.nickname || 'unknown';
 }
 
+/** A table cell for a user/author name, tinted by a per-user color. */
+function userCell(name: string): Cell {
+  return { value: name, color: colorForUser(name) };
+}
+
 /** Tabular list of pull requests. */
 export function printPullRequestList(prs: Pullrequest[]): void {
   consola.success(`Found ${prs.length} pull request(s):`);
@@ -42,7 +48,7 @@ export function printPullRequestList(prs: Pullrequest[]): void {
     `#${pr.id}`,
     `${pr.state ?? ''}${pr.draft ? ' (draft)' : ''}`,
     pr.title ?? '',
-    authorName(pr.author),
+    userCell(authorName(pr.author)),
     `${pr.source?.branch?.name ?? '?'} → ${pr.destination?.branch?.name ?? '?'}`,
     shortDate(pr.updated_on),
   ]);
@@ -113,7 +119,7 @@ export function printComments(comments: Comment[]): void {
   consola.success(`Found ${comments.length} comment(s):`);
   const rows = comments.map((comment) => [
     `${comment.parent ? '↳ ' : ''}#${comment.id}`,
-    authorName(comment.user),
+    userCell(authorName(comment.user)),
     commentLocation(comment),
     (comment.content?.raw ?? '').replace(/\s+/g, ' ').trim(),
     (comment as { resolution?: unknown }).resolution ? 'yes' : comment.deleted ? 'deleted' : '',
@@ -177,12 +183,10 @@ interface CommitLike {
 /** Tabular list of the commits that make up a pull request. */
 export function printCommits(commits: CommitLike[]): void {
   consola.success(`Found ${commits.length} commit(s):`);
-  const rows = commits.map((commit) => [
-    (commit.hash ?? '').slice(0, 8),
-    (commit.message ?? '').split('\n')[0],
-    commit.author?.user?.display_name || commit.author?.raw || 'unknown',
-    shortDate(commit.date),
-  ]);
+  const rows = commits.map((commit) => {
+    const author = commit.author?.user?.display_name || commit.author?.raw || 'unknown';
+    return [(commit.hash ?? '').slice(0, 8), (commit.message ?? '').split('\n')[0], userCell(author), shortDate(commit.date)];
+  });
   consola.log(
     renderTable(
       [{ header: 'Hash' }, { header: 'Message', max: 56 }, { header: 'Author', max: 24 }, { header: 'Date' }],
@@ -255,14 +259,14 @@ interface ActivityLike {
 /** Tabular pull request activity log. */
 export function printActivity(entries: ActivityLike[]): void {
   consola.success(`${entries.length} activity entr(ies):`);
-  const rows = entries.map((entry) => {
-    if (entry.approval) return ['approved', authorName(entry.approval.user), '', shortDate(entry.approval.date)];
+  const rows: Cell[][] = entries.map((entry) => {
+    if (entry.approval) return ['approved', userCell(authorName(entry.approval.user)), '', shortDate(entry.approval.date)];
     if (entry.changes_requested)
-      return ['changes requested', authorName(entry.changes_requested.user), '', shortDate(entry.changes_requested.date)];
+      return ['changes requested', userCell(authorName(entry.changes_requested.user)), '', shortDate(entry.changes_requested.date)];
     if (entry.update)
-      return ['update', authorName(entry.update.author), entry.update.state ?? '', shortDate(entry.update.date)];
+      return ['update', userCell(authorName(entry.update.author)), entry.update.state ?? '', shortDate(entry.update.date)];
     if (entry.comment)
-      return ['comment', authorName(entry.comment.user), (entry.comment.content?.raw ?? '').replace(/\s+/g, ' ').trim(), ''];
+      return ['comment', userCell(authorName(entry.comment.user)), (entry.comment.content?.raw ?? '').replace(/\s+/g, ' ').trim(), ''];
     return ['?', '', '', ''];
   });
   consola.log(
