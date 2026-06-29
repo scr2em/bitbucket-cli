@@ -1,4 +1,5 @@
 import { consola } from 'consola';
+import { renderTable } from './table';
 import type { Branchrestriction } from '../api/generated/bitbucket-api';
 
 function restrictionTarget(r: Branchrestriction): string {
@@ -11,17 +12,19 @@ function restrictionExtras(r: Branchrestriction): string {
   if (typeof r.value === 'number') parts.push(`value=${r.value}`);
   if (r.users?.length) parts.push(`users=${r.users.length}`);
   if (r.groups?.length) parts.push(`groups=${r.groups.length}`);
-  return parts.length ? `  (${parts.join(', ')})` : '';
+  return parts.join(', ');
 }
 
-/** Lists branch restriction rules. */
+/** Tabular list of branch restriction rules. */
 export function printRestrictions(restrictions: Branchrestriction[]): void {
   consola.success(`Found ${restrictions.length} branch restriction(s):`);
-  consola.log('');
-  restrictions.forEach((r) => {
-    consola.log(`#${r.id}  ${r.kind}  [${restrictionTarget(r)}]${restrictionExtras(r)}`);
-  });
-  consola.log('');
+  const rows = restrictions.map((r) => [`#${r.id}`, r.kind ?? '?', restrictionTarget(r), restrictionExtras(r)]);
+  consola.log(
+    renderTable(
+      [{ header: 'ID' }, { header: 'Kind', max: 36 }, { header: 'Match', max: 30 }, { header: 'Details', max: 30 }],
+      rows,
+    ),
+  );
 }
 
 /** Detail view for a single branch restriction rule. */

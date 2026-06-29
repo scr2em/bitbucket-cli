@@ -575,28 +575,8 @@ To replace stored credentials, delete `~/.config/.bitbucket-cli` and run any com
 
 ## Development
 
-```bash
-pnpm install      # install dependencies
-pnpm run build    # compile to dist/
-pnpm run dev      # run from source via ts-node
-pnpm start        # run the built CLI
-```
-
-### API client (generated)
-
-The Bitbucket REST client in `src/api/generated/bitbucket-api.ts` is generated from the vendored OpenAPI
-spec (`bitbucket-openapi.json`) using
-[`swagger-typescript-api`](https://github.com/acacode/swagger-typescript-api), giving the CLI fully-typed
-request/response models straight from Atlassian's source of truth.
-
-```bash
-# Regenerate the client after updating bitbucket-openapi.json
-pnpm run generate:api
-```
-
-The generated file is committed so the project builds without running codegen. It is wired up in
-`src/api/client.ts` (auth, pagination, query serialization, friendly errors); commands talk to thin
-service facades in `src/services/*` rather than the generated methods directly.
+Contributing or building from source? See **[README-DEV.md](./README-DEV.md)** for setup, project
+structure, the generated API client, and the release process.
 
 ## License
 

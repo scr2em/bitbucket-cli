@@ -1,4 +1,5 @@
 import { consola } from 'consola';
+import { renderTable } from './table';
 import type {
   Pullrequest,
   Comment,
@@ -10,13 +11,6 @@ const STATE_EMOJI: Record<string, string> = {
   MERGED: '✅',
   DECLINED: '❌',
   SUPERSEDED: '🔄',
-};
-
-const STATUS_EMOJI: Record<string, string> = {
-  SUCCESSFUL: '✅',
-  FAILED: '❌',
-  INPROGRESS: '⏳',
-  STOPPED: '⏹️',
 };
 
 /** Prints data as pretty JSON on stdout (used by `--json`). */
@@ -33,22 +27,38 @@ export function formatDate(value?: string): string {
   return value ? new Date(value).toLocaleString() : 'unknown';
 }
 
+function shortDate(value?: string): string {
+  return value ? new Date(value).toLocaleDateString() : '—';
+}
+
 function authorName(account?: { display_name?: string; nickname?: string }): string {
   return account?.display_name || account?.nickname || 'unknown';
 }
 
-/** One-line summary of a pull request, used in list output. */
+/** Tabular list of pull requests. */
 export function printPullRequestList(prs: Pullrequest[]): void {
   consola.success(`Found ${prs.length} pull request(s):`);
-  consola.log('');
-  prs.forEach((pr) => {
-    const emoji = STATE_EMOJI[pr.state ?? ''] ?? '❓';
-    const draft = pr.draft ? ' [draft]' : '';
-    consola.log(`${emoji} #${pr.id}${draft}  ${pr.title}`);
-    consola.log(`   ${authorName(pr.author)}  ·  ${pr.source?.branch?.name ?? '?'} → ${pr.destination?.branch?.name ?? '?'}  ·  ${formatDate(pr.updated_on)}`);
-    if (pr.links?.html?.href) consola.log(`   ${pr.links.html.href}`);
-    consola.log('');
-  });
+  const rows = prs.map((pr) => [
+    `#${pr.id}`,
+    `${pr.state ?? ''}${pr.draft ? ' (draft)' : ''}`,
+    pr.title ?? '',
+    authorName(pr.author),
+    `${pr.source?.branch?.name ?? '?'} → ${pr.destination?.branch?.name ?? '?'}`,
+    shortDate(pr.updated_on),
+  ]);
+  consola.log(
+    renderTable(
+      [
+        { header: 'ID' },
+        { header: 'State' },
+        { header: 'Title', max: 50 },
+        { header: 'Author', max: 22 },
+        { header: 'Branches', max: 34 },
+        { header: 'Updated' },
+      ],
+      rows,
+    ),
+  );
 }
 
 /** Full detail view of a single pull request. */
@@ -93,24 +103,33 @@ function commentLocation(comment: Comment): string {
   const inline = comment.inline as { path?: string; to?: number; from?: number } | undefined;
   if (inline?.path) {
     const line = inline.to ?? inline.from;
-    return `📄 ${inline.path}${line ? `:${line}` : ''}`;
+    return `${inline.path}${line ? `:${line}` : ''}`;
   }
-  return '💬 general';
+  return 'general';
 }
 
-/** Lists comments, indenting replies under their parent. */
+/** Tabular list of comments (replies marked with ↳). */
 export function printComments(comments: Comment[]): void {
   consola.success(`Found ${comments.length} comment(s):`);
-  consola.log('');
-  comments.forEach((comment) => {
-    const indent = comment.parent ? '   ↳ ' : '';
-    const resolved = (comment as { resolution?: unknown }).resolution ? ' ✔ resolved' : '';
-    const deleted = comment.deleted ? ' (deleted)' : '';
-    consola.log(`${indent}#${comment.id}  ${authorName(comment.user)}  ·  ${commentLocation(comment)}${resolved}${deleted}`);
-    const raw = comment.content?.raw ?? '';
-    raw.split('\n').forEach((line) => consola.log(`${indent}   ${line}`));
-    consola.log('');
-  });
+  const rows = comments.map((comment) => [
+    `${comment.parent ? '↳ ' : ''}#${comment.id}`,
+    authorName(comment.user),
+    commentLocation(comment),
+    (comment.content?.raw ?? '').replace(/\s+/g, ' ').trim(),
+    (comment as { resolution?: unknown }).resolution ? 'yes' : comment.deleted ? 'deleted' : '',
+  ]);
+  consola.log(
+    renderTable(
+      [
+        { header: 'ID' },
+        { header: 'Author', max: 22 },
+        { header: 'Location', max: 28 },
+        { header: 'Comment', max: 50 },
+        { header: 'Resolved' },
+      ],
+      rows,
+    ),
+  );
 }
 
 /** Single comment detail. */
@@ -123,15 +142,20 @@ export function printComment(comment: Comment): void {
   consola.log('');
 }
 
-/** Lists tasks with their resolution state. */
+/** Tabular list of tasks. */
 export function printTasks(tasks: PullrequestCommentTask[]): void {
   consola.success(`Found ${tasks.length} task(s):`);
-  consola.log('');
-  tasks.forEach((task) => {
-    const done = task.state === 'RESOLVED' ? '☑' : '☐';
-    consola.log(`${done} #${task.id}  ${task.content?.raw ?? ''}`);
-  });
-  consola.log('');
+  const rows = tasks.map((task) => [
+    `#${task.id}`,
+    task.state === 'RESOLVED' ? 'resolved' : 'open',
+    (task.content?.raw ?? '').replace(/\s+/g, ' ').trim(),
+  ]);
+  consola.log(
+    renderTable(
+      [{ header: 'ID' }, { header: 'State' }, { header: 'Task', max: 70 }],
+      rows,
+    ),
+  );
 }
 
 /** Single task detail. */
@@ -150,18 +174,21 @@ interface CommitLike {
   date?: string;
 }
 
-/** Lists the commits that make up a pull request. */
+/** Tabular list of the commits that make up a pull request. */
 export function printCommits(commits: CommitLike[]): void {
   consola.success(`Found ${commits.length} commit(s):`);
-  consola.log('');
-  commits.forEach((commit) => {
-    const shortHash = (commit.hash ?? '').slice(0, 8);
-    const subject = (commit.message ?? '').split('\n')[0];
-    const who = commit.author?.user?.display_name || commit.author?.raw || 'unknown';
-    consola.log(`${shortHash}  ${subject}`);
-    consola.log(`         ${who}  ·  ${formatDate(commit.date)}`);
-  });
-  consola.log('');
+  const rows = commits.map((commit) => [
+    (commit.hash ?? '').slice(0, 8),
+    (commit.message ?? '').split('\n')[0],
+    commit.author?.user?.display_name || commit.author?.raw || 'unknown',
+    shortDate(commit.date),
+  ]);
+  consola.log(
+    renderTable(
+      [{ header: 'Hash' }, { header: 'Message', max: 56 }, { header: 'Author', max: 24 }, { header: 'Date' }],
+      rows,
+    ),
+  );
 }
 
 interface StatusLike {
@@ -172,17 +199,20 @@ interface StatusLike {
   description?: string;
 }
 
-/** Lists build/commit statuses attached to a pull request. */
+/** Tabular list of build/commit statuses. */
 export function printStatuses(statuses: StatusLike[]): void {
   consola.success(`Found ${statuses.length} status(es):`);
-  consola.log('');
-  statuses.forEach((status) => {
-    const emoji = STATUS_EMOJI[status.state ?? ''] ?? '❓';
-    consola.log(`${emoji} ${status.state ?? '?'}  ${status.name || status.key || ''}`);
-    if (status.description) consola.log(`   ${status.description}`);
-    if (status.url) consola.log(`   ${status.url}`);
-  });
-  consola.log('');
+  const rows = statuses.map((status) => [
+    status.state ?? '?',
+    status.name || status.key || '',
+    (status.description ?? '').replace(/\s+/g, ' ').trim(),
+  ]);
+  consola.log(
+    renderTable(
+      [{ header: 'State' }, { header: 'Name', max: 32 }, { header: 'Description', max: 50 }],
+      rows,
+    ),
+  );
 }
 
 interface DiffstatLike {
@@ -193,17 +223,26 @@ interface DiffstatLike {
   new?: { path?: string } | null;
 }
 
-/** Per-file added/removed line summary. */
+/** Tabular per-file added/removed line summary. */
 export function printDiffstat(entries: DiffstatLike[]): void {
   consola.success(`${entries.length} file(s) changed:`);
-  consola.log('');
-  entries.forEach((entry) => {
-    const path = entry.new?.path || entry.old?.path || '?';
-    const added = entry.lines_added ?? 0;
-    const removed = entry.lines_removed ?? 0;
-    consola.log(`   ${entry.status ?? 'modified'}  +${added} -${removed}  ${path}`);
-  });
-  consola.log('');
+  const rows = entries.map((entry) => [
+    entry.status ?? 'modified',
+    `+${entry.lines_added ?? 0}`,
+    `-${entry.lines_removed ?? 0}`,
+    entry.new?.path || entry.old?.path || '?',
+  ]);
+  consola.log(
+    renderTable(
+      [
+        { header: 'Status' },
+        { header: 'Added', align: 'right' },
+        { header: 'Removed', align: 'right' },
+        { header: 'Path', max: 60 },
+      ],
+      rows,
+    ),
+  );
 }
 
 interface ActivityLike {
@@ -213,21 +252,23 @@ interface ActivityLike {
   comment?: Comment;
 }
 
-/** Renders a pull request activity log (updates, approvals, comments). */
+/** Tabular pull request activity log. */
 export function printActivity(entries: ActivityLike[]): void {
   consola.success(`${entries.length} activity entr(ies):`);
-  consola.log('');
-  entries.forEach((entry) => {
-    if (entry.approval) {
-      consola.log(`✅ approved by ${authorName(entry.approval.user)}  ·  ${formatDate(entry.approval.date)}`);
-    } else if (entry.changes_requested) {
-      consola.log(`🔴 changes requested by ${authorName(entry.changes_requested.user)}  ·  ${formatDate(entry.changes_requested.date)}`);
-    } else if (entry.update) {
-      consola.log(`🔄 update (${entry.update.state ?? '?'}) by ${authorName(entry.update.author)}  ·  ${formatDate(entry.update.date)}`);
-    } else if (entry.comment) {
-      const raw = (entry.comment.content?.raw ?? '').split('\n')[0];
-      consola.log(`💬 comment by ${authorName(entry.comment.user)}: ${raw}`);
-    }
+  const rows = entries.map((entry) => {
+    if (entry.approval) return ['approved', authorName(entry.approval.user), '', shortDate(entry.approval.date)];
+    if (entry.changes_requested)
+      return ['changes requested', authorName(entry.changes_requested.user), '', shortDate(entry.changes_requested.date)];
+    if (entry.update)
+      return ['update', authorName(entry.update.author), entry.update.state ?? '', shortDate(entry.update.date)];
+    if (entry.comment)
+      return ['comment', authorName(entry.comment.user), (entry.comment.content?.raw ?? '').replace(/\s+/g, ' ').trim(), ''];
+    return ['?', '', '', ''];
   });
-  consola.log('');
+  consola.log(
+    renderTable(
+      [{ header: 'Type' }, { header: 'Who', max: 22 }, { header: 'Detail', max: 50 }, { header: 'Date' }],
+      rows,
+    ),
+  );
 }

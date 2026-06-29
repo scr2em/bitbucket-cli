@@ -1,19 +1,26 @@
 import { consola } from 'consola';
+import { renderTable } from './table';
 import type { Ref, Branch, Tag } from '../api/generated/bitbucket-api';
 
 function shortHash(ref: Ref): string {
   return (ref.target?.hash ?? '').slice(0, 8) || '—';
 }
 
-/** Lists branches and/or tags with their target commit. */
+/** Tabular list of branches and/or tags with their target commit. */
 export function printRefs(refs: Ref[], label = 'ref'): void {
   consola.success(`Found ${refs.length} ${label}(s):`);
-  consola.log('');
-  refs.forEach((ref) => {
-    const kind = ref.type === 'tag' ? '🏷 ' : '🌿';
-    consola.log(`${kind} ${ref.name ?? '?'}  @ ${shortHash(ref)}`);
-  });
-  consola.log('');
+  const rows = refs.map((ref) => [
+    ref.type === 'tag' ? 'tag' : 'branch',
+    ref.name ?? '?',
+    shortHash(ref),
+    (ref.target?.message ?? '').split('\n')[0],
+  ]);
+  consola.log(
+    renderTable(
+      [{ header: 'Type' }, { header: 'Name', max: 40 }, { header: 'Target' }, { header: 'Message', max: 50 }],
+      rows,
+    ),
+  );
 }
 
 /** Detail view for a single branch. */
