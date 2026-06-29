@@ -7,7 +7,7 @@ import { setToken } from '../../utils/token';
 import { createAuthHeader } from '../../utils/api';
 import { runAction } from '../../utils/command';
 
-const TOKEN_PAGE = 'https://bitbucket.org/account/settings/api-tokens/';
+const TOKEN_PAGE = 'https://id.atlassian.com/manage-profile/security/api-tokens';
 const API_BASE = 'https://api.bitbucket.org/2.0';
 
 const loginCommand = new Command('login');

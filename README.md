@@ -23,6 +23,24 @@ evolves. It's the closest thing to an official Bitbucket CLI.
 
 ## Installation
 
+### From npm (recommended)
+
+Install globally to get the `bb` command on your `PATH`:
+
+```bash
+npm install -g @scr2em/bitbucket-cli
+# or: pnpm add -g @scr2em/bitbucket-cli
+```
+
+Then run it:
+
+```bash
+bb login
+bb --help
+```
+
+### From source
+
 ```bash
 pnpm install
 pnpm run build
@@ -73,7 +91,7 @@ It opens the Bitbucket API token page in your browser, waits while you create a 
 to paste it back. The token is verified against the API and saved to `~/.config/.bitbucket-cli`. Use
 `bb login --no-browser` if you'd rather open the page yourself.
 
-Create your token at <https://bitbucket.org/account/settings/api-tokens/> and grant the scopes for what
+Create your token at <https://id.atlassian.com/manage-profile/security/api-tokens> and grant the scopes for what
 you want to do (at least `Repositories: Read`; add write/admin scopes for creating PRs, merging, managing
 restrictions, etc.). Credentials are stored as `email:api_token`; if you skip `login`, the CLI prompts for
 them the first time you run any command.
