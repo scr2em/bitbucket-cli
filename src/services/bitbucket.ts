@@ -252,3 +252,57 @@ export async function getPullRequestDiff(workspace: string, repo: string, prId: 
     handleApiError(error, { workspace });
   }
 }
+
+export async function createPullRequest(
+  workspace: string, 
+  repo: string, 
+  sourceBranch: string, 
+  destinationBranch: string, 
+  title: string, 
+  description: string,
+  credentials: string
+): Promise<PullRequest> {
+  try {
+    const authHeader = createAuthHeader(credentials);
+    const url = `${BITBUCKET_API_BASE}/repositories/${workspace}/${repo}/pullrequests`;
+    
+    const requestBody = {
+      title,
+      description,
+      source: {
+        branch: {
+          name: sourceBranch
+        }
+      },
+      destination: {
+        branch: {
+          name: destinationBranch
+        }
+      }
+    };
+    
+    const response = await axios.post(url, requestBody, {
+      headers: {
+        Authorization: authHeader,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      if (error.response?.status === 401) {
+        throw new Error('Invalid credentials. Please check your Bitbucket username and API token.');
+      } else if (error.response?.status === 403) {
+        throw new Error(`Access forbidden. You may not have permission to create pull requests in ${workspace}/${repo}.`);
+      } else if (error.response?.status === 404) {
+        throw new Error(`Repository '${workspace}/${repo}' not found, or branch '${sourceBranch}' or '${destinationBranch}' does not exist.`);
+      } else if (error.response?.status === 400) {
+        throw new Error(`Bad request: ${error.response?.data?.error?.message || 'Invalid pull request data'}`);
+      } else {
+        throw new Error(`Failed to create pull request: ${error.response?.status} ${error.response?.statusText}`);
+      }
+    }
+    throw new Error(`Failed to create pull request in ${workspace}/${repo}`);
+  }
+}

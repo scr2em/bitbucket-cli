@@ -76,18 +76,56 @@ Make sure the token has "Repositories: Read" permission.
 
 ### Pull Request Management (`pr`)
 
-- `bitbucket pr list` - List pull requests for a repository
-  - `--workspace, -w` - Bitbucket workspace name (required)
-  - `--repo, -r` - Repository name (required)
-  - `--state` - Filter by state (open, merged, declined, superseded)
+The `pr` command implements every action in the [Bitbucket Cloud Pull Requests REST
+API](https://developer.atlassian.com/cloud/bitbucket/rest/api-group-pullrequests/).
+The client is generated from the official OpenAPI spec (see
+[API client](#api-client-generated)).
 
-- `bitbucket pr create` - Create a new pull request
-  - `--workspace, -w` - Bitbucket workspace name (required)
-  - `--repo, -r` - Repository name (required)
-  - `--source, -s` - Source branch (required)
-  - `--destination, -d` - Destination branch (required)
-  - `--title, -t` - Pull request title (optional)
-  - `--message, -m` - Pull request description (optional)
+Common options: `-w, --workspace` (falls back to the configured default), `-r, --repo`,
+and `-p, --pr <id>` for pull-request-scoped commands. Read commands accept `--json` for
+machine-readable output.
+
+**Core**
+
+- `bitbucket pr list -r <repo>` - List pull requests
+  - `--state <state>` (repeatable), `--all`, `-q/--query`, `--sort`, `-l/--limit`
+  - `--commit <hash>` - only PRs that contain a commit
+- `bitbucket pr authored -u <user>` - List workspace PRs authored by a user
+- `bitbucket pr get -r <repo> -p <id>` - Show a pull request
+- `bitbucket pr create -r <repo> -s <source>` - Create a pull request
+  - `-d/--destination`, `-t/--title`, `-m/--description`, `--reviewer <uuid>` (repeatable), `--close-source-branch`, `--draft`
+- `bitbucket pr update -r <repo> -p <id>` - Update title/description/destination
+
+**Review actions**
+
+- `bitbucket pr approve` / `unapprove`
+- `bitbucket pr request-changes` / `unrequest-changes`
+- `bitbucket pr decline` - Decline a pull request (`-y` to skip confirmation)
+- `bitbucket pr merge` - Merge (`--strategy`, `-m/--message`, `--close-source-branch`, `-y`)
+- `bitbucket pr merge-status --task <id>` - Poll an async merge task
+
+**Content**
+
+- `bitbucket pr diff` - Rich split-diff view (`--raw` for plain unified diff)
+- `bitbucket pr patch` - Print the patch (diff + commit metadata)
+- `bitbucket pr diffstat` - Per-file change summary
+- `bitbucket pr commits` - Commits in the pull request
+- `bitbucket pr conflicts` - File conflicts
+- `bitbucket pr statuses` - Build/commit statuses
+- `bitbucket pr activity` - Activity log (omit `-p` for repository-wide activity)
+
+**Comments** (`bitbucket pr comments <sub>`)
+
+- `list`, `get -c <id>`, `add` (`-m`, `--path`/`--line` for inline, `--parent` for replies),
+  `update -c <id>`, `delete -c <id>`, `resolve -c <id>`, `reopen -c <id>`
+
+**Tasks** (`bitbucket pr tasks <sub>`)
+
+- `list`, `get -t <id>`, `add` (`-m`, `--comment`), `update -t <id>` (`-m`, `--resolve`/`--reopen`), `delete -t <id>`
+
+**Application properties** (`bitbucket pr properties <sub>`, for Connect apps)
+
+- `get`, `set --value <json>`, `delete` — each takes `--app-key <key> --name <name>`
 
 ### Branch Management (`branches`)
 
@@ -179,3 +217,20 @@ npm run dev
 # Run the built CLI
 npm start
 ```
+
+### API client (generated)
+
+The Bitbucket REST client in `src/api/generated/bitbucket-api.ts` is generated from the
+vendored OpenAPI spec (`bitbucket-openapi.json`) using
+[`swagger-typescript-api`](https://github.com/acacode/swagger-typescript-api). This gives
+the CLI fully-typed request/response models straight from Atlassian's source of truth.
+
+```bash
+# Regenerate the client after updating bitbucket-openapi.json
+npm run generate:api
+```
+
+The generated file is committed so the project builds without running codegen. It is wired
+up in `src/api/client.ts` (auth, pagination, query serialization, friendly errors); commands
+talk to the thin facade in `src/services/pullrequests.ts` rather than the generated methods
+directly.

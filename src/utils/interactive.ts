@@ -200,3 +200,29 @@ export async function selectPRAction(): Promise<'open' | 'view-details' | 'view-
 
   return action;
 }
+
+export async function selectMultipleRepositories(repositories: Repository[]): Promise<Repository[]> {
+  const choices = repositories.map(repo => ({
+    name: `${repo.name} ${repo.is_private ? '(private)' : '(public)'} - ${repo.description || 'No description'}`,
+    value: repo,
+    short: repo.name
+  }));
+
+  const { selectedRepos } = await inquirer.prompt([
+    {
+      type: 'checkbox',
+      name: 'selectedRepos',
+      message: 'Select repositories (use space to select/deselect, enter to confirm):',
+      choices,
+      pageSize: 15,
+      validate: (input: Repository[]) => {
+        if (input.length === 0) {
+          return 'Please select at least one repository.';
+        }
+        return true;
+      }
+    }
+  ]);
+
+  return selectedRepos;
+}
