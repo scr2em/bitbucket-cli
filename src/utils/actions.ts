@@ -2,7 +2,7 @@ import { exec, spawn } from 'child_process';
 import { promisify } from 'util';
 import open from 'open';
 import { existsSync, rmSync, writeFileSync, mkdtempSync } from 'fs';
-import { join } from 'path';
+import { dirname, join } from 'path';
 import { tmpdir } from 'os';
 import { Repository, PullRequest } from '../services/bitbucket';
 import { consola } from 'consola';
@@ -127,6 +127,16 @@ export function displayPullRequestDetails(pr: PullRequest): void {
   consola.log('');
 }
 
+// Resolve the path to the bundled git-split-diffs binary so users don't need it
+// installed separately. It ships as a dependency, but its executable isn't placed
+// on the user's PATH, so we run it directly with the current Node binary.
+function resolveSplitDiffsBin(): string {
+  const pkgJsonPath = require.resolve('git-split-diffs/package.json');
+  const pkg = require('git-split-diffs/package.json');
+  const binRel = typeof pkg.bin === 'string' ? pkg.bin : pkg.bin['git-split-diffs'];
+  return join(dirname(pkgJsonPath), binRel);
+}
+
 export async function viewPullRequestDiff(prId: string | number, diffContent: string): Promise<void> {
   try {
     // Create a temporary directory for the diff file
@@ -140,7 +150,7 @@ export async function viewPullRequestDiff(prId: string | number, diffContent: st
     consola.info(`Diff file: ${diffFilePath}`);
     
     consola.info('Attempting to view diff with git-split-diffs...');
-    
+
     // Use spawn to properly handle the interactive git-split-diffs command
     await new Promise<void>((resolve, reject) => {
       const gitDiff = spawn('git', [
@@ -155,7 +165,7 @@ export async function viewPullRequestDiff(prId: string | number, diffContent: st
         stdio: ['pipe', 'pipe', 'pipe']
       });
 
-      const splitDiffs = spawn('git-split-diffs', [], {
+      const splitDiffs = spawn(process.execPath, [resolveSplitDiffsBin()], {
         stdio: ['pipe', 'inherit', 'inherit']
       });
 
@@ -168,7 +178,7 @@ export async function viewPullRequestDiff(prId: string | number, diffContent: st
       });
 
       splitDiffs.on('error', (error) => {
-        reject(new Error(`Failed to run git-split-diffs: ${error.message}. Make sure git-split-diffs is installed.`));
+        reject(new Error(`Failed to run git-split-diffs: ${error.message}`));
       });
 
       // Wait for git-split-diffs to complete
