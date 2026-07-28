@@ -517,12 +517,13 @@ _Generated from the live command tree. Run any command with `--help` for the sam
 ### `bb commits` — Commit management commands
 
 - `bb commits list` — List commits for a repository or branch
-  - `-w, --workspace <workspace>` — Bitbucket workspace name (uses default if not specified)
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
   - `-r, --repo <repo>` **(required)** — Repository name
-  - `-b, --branch <branch>` — Branch name (defaults to main)
-  - `-l, --limit <limit>` — Number of commits to show _(default: "20")_
-  - `--author <author>` — Filter by author
-  - `--since <since>` — Show commits since date (YYYY-MM-DD)
+  - `--json` — Output raw JSON
+  - `-b, --branch <branch>` — Branch, tag, or hash (defaults to every ref, like `git log --all`)
+  - `-l, --limit <n>` — Maximum commits to fetch _(default: "20")_
+  - `--author <author>` — Filter by author name or email (case-insensitive substring, client-side)
+  - `--since <since>` — Only commits dated on or after this date (YYYY-MM-DD, client-side)
 - `bb commits show` — Show details of a specific commit
   - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
   - `-r, --repo <repo>` **(required)** — Repository name
@@ -548,9 +549,11 @@ _Generated from the live command tree. Run any command with `--help` for the sam
   - `-y, --yes` — Skip confirmation prompt
 - `bb config show` — Show current configuration
 
-> **Note:** the `commits` and `browse` commands predate the generated client. `browse` offers an
-> interactive workspace → project → repository → pull request explorer; `commits list` is still being
-> wired to the API.
+> **Note:** `browse` predates the generated client and offers an interactive
+> workspace → project → repository → pull request explorer.
+>
+> `commits list`'s `--author` and `--since` filters are applied to the newest `--limit` commits after
+> they are fetched, so they narrow that window rather than searching further back through history.
 
 ## Requirements
 

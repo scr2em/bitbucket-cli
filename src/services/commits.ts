@@ -1,12 +1,28 @@
 import { BitbucketApi, paginate, unwrap } from '../api/client';
-import type { Commit, Diffstat } from '../api/generated/bitbucket-api';
+import type { BaseCommit, Commit, Diffstat } from '../api/generated/bitbucket-api';
 
-/** Facade over the generated client for a single commit. */
+/** Facade over the generated client for repository commits. */
 
 export interface CommitRef {
   workspace: string;
   repo: string;
   commit: string;
+}
+
+export interface RepoRef {
+  workspace: string;
+  repo: string;
+  /** Branch, tag, or hash to walk back from; every ref when omitted (like `git log --all`). */
+  revision?: string;
+}
+
+/** Commits in reverse chronological order, newest first. */
+export function listCommits(api: BitbucketApi, ref: RepoRef, options: { limit?: number } = {}): Promise<BaseCommit[]> {
+  const firstPage = ref.revision
+    ? api.repositories.commitsDetail(ref.repo, ref.revision, ref.workspace)
+    : api.repositories.commitsList(ref.repo, ref.workspace);
+
+  return paginate<BaseCommit>(api, firstPage, { limit: options.limit });
 }
 
 export function getCommit(api: BitbucketApi, ref: CommitRef): Promise<Commit> {
