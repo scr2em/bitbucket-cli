@@ -524,8 +524,9 @@ _Generated from the live command tree. Run any command with `--help` for the sam
   - `--author <author>` — Filter by author
   - `--since <since>` — Show commits since date (YYYY-MM-DD)
 - `bb commits show` — Show details of a specific commit
-  - `-w, --workspace <workspace>` **(required)** — Bitbucket workspace name
+  - `-w, --workspace <workspace>` — Bitbucket workspace (uses configured default if omitted)
   - `-r, --repo <repo>` **(required)** — Repository name
+  - `--json` — Output raw JSON
   - `-c, --commit <commit>` **(required)** — Commit hash or short hash
   - `--diff` — Show the diff for the commit
   - `--stat` — Show file statistics for the commit
@@ -548,7 +549,7 @@ _Generated from the live command tree. Run any command with `--help` for the sam
 - `bb config show` — Show current configuration
 
 > **Note:** the `commits` and `browse` commands predate the generated client. `browse` offers an
-> interactive workspace → project → repository → pull request explorer; `commits` is still being
+> interactive workspace → project → repository → pull request explorer; `commits list` is still being
 > wired to the API.
 
 ## Requirements

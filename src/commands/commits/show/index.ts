@@ -1,26 +1,43 @@
 import { Command } from 'commander';
-import { consola } from 'consola';
+import { addJsonOption, addRepoOptions, runAction, resolveWorkspace } from '../../../utils/command';
+import { getApi } from '../../../api/client';
+import * as commits from '../../../services/commits';
+import { printDiffstat, printJson } from '../../../utils/pr-format';
+import { printCommitDetails } from '../../../utils/commit-format';
 
 const showCommand = new Command('show');
 
-showCommand
+addJsonOption(addRepoOptions(showCommand))
   .description('Show details of a specific commit')
-  .requiredOption('-w, --workspace <workspace>', 'Bitbucket workspace name')
-  .requiredOption('-r, --repo <repo>', 'Repository name')
   .requiredOption('-c, --commit <commit>', 'Commit hash or short hash')
   .option('--diff', 'Show the diff for the commit')
   .option('--stat', 'Show file statistics for the commit')
-  .action(async (options) => {
-    try {
-      consola.info(`Showing commit ${options.commit} for ${options.workspace}/${options.repo}`);
-      
-      // TODO: Implement commit details
-      consola.warn('Commit details not implemented yet.');
-      
-    } catch (error) {
-      consola.error('Error:', error instanceof Error ? error.message : 'Unknown error');
-      process.exit(1);
-    }
-  });
+  .action(
+    runAction(async (options) => {
+      const ref: commits.CommitRef = {
+        workspace: resolveWorkspace(options.workspace),
+        repo: options.repo,
+        commit: options.commit,
+      };
+
+      const api = await getApi();
+      const commit = await commits.getCommit(api, ref);
+
+      if (options.json) {
+        const entries = options.stat ? await commits.getDiffstat(api, ref) : undefined;
+        const diff = options.diff ? await commits.getDiff(api, ref) : undefined;
+        return printJson({ ...commit, ...(entries && { diffstat: entries }), ...(diff && { diff }) });
+      }
+
+      printCommitDetails(commit);
+
+      if (options.stat) {
+        printDiffstat(await commits.getDiffstat(api, ref));
+      }
+      if (options.diff) {
+        process.stdout.write(await commits.getDiff(api, ref));
+      }
+    }),
+  );
 
 export { showCommand };
