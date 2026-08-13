@@ -81,9 +81,9 @@ export async function selectActionWithNavigation(canGoBack: boolean = false): Pr
 
 export async function selectWorkspaceWithNavigation(workspaces: Workspace[]): Promise<NavigationResult<Workspace | null>> {
   const choices = workspaces.map(workspace => ({
-    name: `${workspace.name} (${workspace.slug}) ${workspace.is_private ? '(private)' : '(public)'}`,
+    name: workspace.slug,
     value: workspace,
-    short: workspace.name
+    short: workspace.slug
   }));
 
   choices.push({

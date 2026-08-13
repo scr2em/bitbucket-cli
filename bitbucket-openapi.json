@@ -22702,6 +22702,7 @@
           }
         ],
         "x-atlassian-auth-types": [
+          "forge-oauth2",
           "api-token"
         ]
       },
@@ -29954,7 +29955,7 @@
       "description": "A workspace is where you create repositories, collaborate on\nyour code, and organize different streams of work in your Bitbucket\nCloud account. Workspaces replace the use of teams and users in API\ncalls.\n"
     }
   ],
-  "x-revision": "27d71c15e7e6",
+  "x-revision": "f3b60a3bc10d",
   "x-atlassian-narrative": {
     "documents": [
       {
@@ -30193,8 +30194,8 @@
         "x-bb-default-fields": [
           "uuid"
         ],
-        "x-bb-url": "/rest/2.0/accounts/{target_user.uuid}/repositories/{repository.uuid}/environments/{uuid}",
-        "x-bb-batch-url": "/rest/2.0/accounts/{target_user.uuid}/repositories/{repository.uuid}/environments_batch",
+        "x-bb-url": "/rest/2.0/accounts/{workspace.uuid}/repositories/{repository.uuid}/environments/{uuid}",
+        "x-bb-batch-url": "/rest/2.0/accounts/{workspace.uuid}/repositories/{repository.uuid}/environments_batch",
         "x-bb-batch-max-size": 100
       },
       "paginated_environments": {
@@ -30684,7 +30685,7 @@
           "uuid",
           "commitHash"
         ],
-        "x-bb-url": "/rest/2.0/accounts/{target_user.uuid}/repositories/{repository.uuid}/commits/{commitHash}/reports/{uuid}"
+        "x-bb-url": "/rest/2.0/accounts/{workspace.uuid}/repositories/{repository.uuid}/commits/{commitHash}/reports/{uuid}"
       },
       "report_data": {
         "type": "object",
@@ -30800,7 +30801,7 @@
         "x-bb-default-fields": [
           "uuid"
         ],
-        "x-bb-url": "/rest/2.0/accounts/{target_user.uuid}/repositories/{repository.uuid}/commits/{commit.hash}/reports/{reportUuid}/annotations/{uuid}"
+        "x-bb-url": "/rest/2.0/accounts/{workspace.uuid}/repositories/{repository.uuid}/commits/{commit.hash}/reports/{reportUuid}/annotations/{uuid}"
       },
       "paginated_reports": {
         "type": "object",
@@ -30968,7 +30969,8 @@
             }
           }
         ],
-        "x-bb-batch-url": "/rest/1.0/accounts/{target_user.uuid}/repositories/{repository.uuid}/pipelines/pipelines_batch"
+        "x-bb-batch-url": "/rest/1.0/accounts/{workspace.uuid}/repositories/{repository.uuid}/pipelines/pipelines_batch",
+        "x-bb-batch-max-size": 100
       },
       "pipelines_links_section_href": {
         "allOf": [
@@ -31950,8 +31952,8 @@
         "x-bb-default-fields": [
           "uuid"
         ],
-        "x-bb-url": "/rest/1.0/accounts/{target_user.uuid}/repositories/{repository.uuid}/pipelines/{pipeline.uuid}/steps/{uuid}",
-        "x-bb-batch-url": "/rest/1.0/accounts/{target_user.uuid}/repositories/{repository.uuid}/pipelines/steps_batch",
+        "x-bb-url": "/rest/1.0/accounts/{workspace.uuid}/repositories/{repository.uuid}/pipelines/{pipeline.uuid}/steps/{uuid}",
+        "x-bb-batch-url": "/rest/1.0/accounts/{workspace.uuid}/repositories/{repository.uuid}/pipelines/steps_batch",
         "x-bb-batch-max-size": 100
       },
       "pipeline_step_state": {
@@ -38111,6 +38113,10 @@
               "is_private": {
                 "type": "boolean",
                 "description": "Indicates whether the workspace is publicly accessible, or whether it is\nprivate to the members and consequently only visible to members."
+              },
+              "is_personal": {
+                "type": "boolean",
+                "description": "Indicates whether the workspace belongs to an individual user."
               },
               "is_privacy_enforced": {
                 "type": "boolean",

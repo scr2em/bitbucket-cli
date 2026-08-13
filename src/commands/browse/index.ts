@@ -50,7 +50,7 @@ browseCommand
           process.exit(1);
         }
         
-        logger.info(`Using specified workspace: ${selectedWorkspace.name} (${selectedWorkspace.slug})`);
+        logger.info(`Using specified workspace: ${selectedWorkspace.slug}`);
         navigation.setData({ workspaces, selectedWorkspace });
         navigation.advanceTo('project-selection');
       } else {
@@ -63,7 +63,7 @@ browseCommand
           selectedWorkspace = workspaces.find(w => w.slug === defaultWorkspaceSlug);
           
           if (selectedWorkspace) {
-            logger.info(`Using default workspace: ${selectedWorkspace.name} (${selectedWorkspace.slug})`);
+            logger.info(`Using default workspace: ${selectedWorkspace.slug}`);
             navigation.setData({ workspaces, selectedWorkspace });
             navigation.advanceTo('project-selection');
           } else {

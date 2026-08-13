@@ -47,17 +47,13 @@ export interface Repository {
   };
 }
 
+/** Shape returned by `/user/workspaces`; it carries fewer fields than the removed `/workspaces`. */
 export interface Workspace {
   type: string;
   uuid: string;
-  name: string;
   slug: string;
-  is_private: boolean;
-  created_on: string;
-  updated_on: string;
   links: {
     self: { href: string };
-    html: { href: string };
     avatar: { href: string };
   };
 }
@@ -152,11 +148,14 @@ const BITBUCKET_API_BASE = 'https://api.bitbucket.org/2.0';
 export async function listWorkspaces(credentials: string): Promise<Workspace[]> {
   try {
     const authHeader = createAuthHeader(credentials);
-    return await fetchAllPages<Workspace>(
-      `${BITBUCKET_API_BASE}/workspaces`,
+    // `/workspaces` was removed by Bitbucket (CHANGE-2770); `/user/workspaces`
+    // wraps each workspace in an access object.
+    const access = await fetchAllPages<{ workspace: Workspace }>(
+      `${BITBUCKET_API_BASE}/user/workspaces`,
       authHeader,
       'workspaces'
     );
+    return access.map(entry => entry.workspace).filter(Boolean);
   } catch (error) {
     handleApiError(error, {});
   }

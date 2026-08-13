@@ -66,9 +66,9 @@ export async function confirmOverwrite(message: string): Promise<boolean> {
 
 export async function selectWorkspace(workspaces: Workspace[]): Promise<Workspace> {
   const choices = workspaces.map(workspace => ({
-    name: `${workspace.name} (${workspace.slug}) ${workspace.is_private ? '(private)' : '(public)'}`,
+    name: workspace.slug,
     value: workspace,
-    short: workspace.name
+    short: workspace.slug
   }));
 
   const { selectedWorkspace } = await inquirer.prompt([

@@ -4677,6 +4677,8 @@ export type Workspace = Object & {
    * private to the members and consequently only visible to members.
    */
   is_private?: boolean;
+  /** Indicates whether the workspace belongs to an individual user. */
+  is_personal?: boolean;
   /** Indicates whether the workspace enforces private content, or whether it allows public content. */
   is_privacy_enforced?: boolean;
   /**
