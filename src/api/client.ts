@@ -52,6 +52,12 @@ export function createApi(authHeader: string): BitbucketApi {
   return api;
 }
 
+/** Returns true when the client authenticates with a Bearer access token. */
+export function usesAccessToken(api: BitbucketApi): boolean {
+  const header = api.instance.defaults.headers.common['Authorization'];
+  return typeof header === 'string' && header.startsWith('Bearer ');
+}
+
 /**
  * Translates raw axios errors into concise, user-facing messages. Surfaces the
  * Bitbucket API's own error message when present.
@@ -63,7 +69,7 @@ export function toFriendlyError(error: unknown): Error {
     const apiMessage = data?.error?.message || data?.error?.detail;
 
     if (status === 401) {
-      return new Error('Invalid credentials. Check your Bitbucket username and API token (username:api_token).');
+      return new Error('Invalid credentials. Check your Bitbucket username and API token (username:api_token), or your access token.');
     }
     if (status === 403) {
       return new Error(apiMessage ? `Access forbidden: ${apiMessage}` : 'Access forbidden. You may not have permission for this resource.');

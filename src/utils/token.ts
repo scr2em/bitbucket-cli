@@ -4,6 +4,7 @@ import * as os from 'os';
 import * as readline from 'readline';
 import { consola } from 'consola';
 import { logger } from './logger';
+import { isAccessToken } from './api';
 
 const CONFIG_FILE = path.join(os.homedir(), '.config', '.bitbucket-cli');
 
@@ -76,6 +77,7 @@ export async function getToken(): Promise<string> {
   consola.info('Bitbucket credentials not found. Tip: run `bitbucket login` for a guided setup.');
   consola.info('You can create an API token at: https://id.atlassian.com/manage-profile/security/api-tokens');
   consola.info('Format: email:api_token (e.g., jane@example.com:ATBBxxxxxxxxxxxx)');
+  consola.info('A repository, project, or workspace access token can also be pasted on its own.');
   consola.info('Make sure the token has "Repositories: Read" permission.');
   
   const token = await promptForToken();
@@ -124,19 +126,13 @@ function promptForToken(): Promise<string> {
       output: process.stdout
     });
 
-    rl.question('Enter your Bitbucket credentials (username:api_token): ', (token) => {
+    rl.question('Enter your Bitbucket credentials (username:api_token or access token): ', (token) => {
       rl.close();
       if (!token.trim()) {
         consola.error('Credentials cannot be empty');
         process.exit(1);
       }
-      
-      // Validate format
-      if (!token.includes(':')) {
-        consola.error('Invalid format. Please use: username:api_token');
-        process.exit(1);
-      }
-      
+
       resolve(token.trim());
     });
   });
@@ -145,7 +141,12 @@ function promptForToken(): Promise<string> {
 export async function displayLoggedInUser(): Promise<void> {
   try {
     const token = await getToken();
-    
+
+    if (isAccessToken(token)) {
+      logger.info('Authenticated with an access token');
+      return;
+    }
+
     // Extract email from the token (format: email:api_token)
     const email = token.split(':')[0];
     

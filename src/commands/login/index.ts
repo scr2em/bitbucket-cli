@@ -15,8 +15,14 @@ const loginCommand = new Command('login');
 loginCommand
   .description('Authenticate by creating a Bitbucket API token and pasting it here')
   .option('--no-browser', 'Do not open the API token page automatically')
+  .option('--access-token', 'Log in with a repository, project, or workspace access token')
   .action(
     runAction(async (options) => {
+      if (options.accessToken) {
+        await loginWithAccessToken();
+        return;
+      }
+
       consola.info('To use this CLI you need an Atlassian API token for your Bitbucket account.');
       consola.info(`Create one here: ${TOKEN_PAGE}`);
       consola.info('Suggested scopes: Repositories and Pull requests (read + write), Account (read).');
@@ -78,5 +84,32 @@ loginCommand
       }
     }),
   );
+
+/**
+ * Saves a repository / project / workspace access token. These tokens are not
+ * tied to a user, so GET /user cannot be used to verify them.
+ */
+async function loginWithAccessToken(): Promise<void> {
+  consola.info('Create an access token in Bitbucket under Repository, Project, or Workspace settings → Access tokens.');
+  consola.log('');
+
+  const { token } = await inquirer.prompt([
+    {
+      type: 'password',
+      name: 'token',
+      mask: '*',
+      message: 'Paste your access token:',
+      validate: (value: string) => {
+        if (!value.trim()) return 'Token is required.';
+        if (value.includes(':')) return 'Access tokens do not contain ":". For username:api_token credentials, run `bb login` instead.';
+        return true;
+      },
+    },
+  ]);
+
+  setToken(token.trim());
+  consola.success('Access token saved to ~/.config/.bitbucket-cli');
+  consola.info('Workspaces cannot be listed with an access token. Set a default workspace: bb config set-workspace -w <workspace>');
+}
 
 export { loginCommand };

@@ -1,4 +1,5 @@
-import { BitbucketApi, paginate } from '../api/client';
+import { BitbucketApi, paginate, usesAccessToken } from '../api/client';
+import { ACCESS_TOKEN_NO_WORKSPACES } from '../utils/api';
 import type { Repository, WorkspaceAccess } from '../api/generated/bitbucket-api';
 
 /** Facade over the generated client for listing repositories. */
@@ -33,6 +34,9 @@ export async function listAccessibleRepositories(
   api: BitbucketApi,
   options: { role?: Role; query?: string; sort?: string; limit?: number } = {},
 ): Promise<Repository[]> {
+  if (usesAccessToken(api)) {
+    throw new Error(ACCESS_TOKEN_NO_WORKSPACES);
+  }
   const workspaces = await paginate<WorkspaceAccess>(api, api.user.workspacesList());
 
   const repos: Repository[] = [];

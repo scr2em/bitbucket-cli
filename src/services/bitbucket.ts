@@ -1,4 +1,4 @@
-import { createAuthHeader, fetchAllPages, handleApiError, PaginatedResponse } from '../utils/api';
+import { ACCESS_TOKEN_NO_WORKSPACES, createAuthHeader, fetchAllPages, handleApiError, isAccessToken, PaginatedResponse } from '../utils/api';
 import axios from 'axios';
 
 export interface Repository {
@@ -146,6 +146,9 @@ export interface PullRequest {
 const BITBUCKET_API_BASE = 'https://api.bitbucket.org/2.0';
 
 export async function listWorkspaces(credentials: string): Promise<Workspace[]> {
+  if (isAccessToken(credentials)) {
+    throw new Error(ACCESS_TOKEN_NO_WORKSPACES);
+  }
   try {
     const authHeader = createAuthHeader(credentials);
     // `/workspaces` was removed by Bitbucket (CHANGE-2770); `/user/workspaces`
