@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { getToken, getDefaultWorkspace } from '../../utils/token';
-import { listWorkspaces, listProjects, listRepositoriesByProject, listPullRequests, getPullRequestDiff } from '../../services/bitbucket';
+import { listWorkspaces, listProjects, listRepositoriesByProject, listPullRequests, getPullRequestDiff, Workspace } from '../../services/bitbucket';
+import { isAccessToken } from '../../utils/api';
 import { selectWorkspace, selectProject, selectRepository, selectAction, selectPRState, selectPullRequest, selectPRAction } from '../../utils/interactive';
 import { 
   selectWorkspaceWithNavigation, 
@@ -15,6 +16,17 @@ import { cloneRepository, openInBrowser, openPullRequestInBrowser, displayPullRe
 import { NavigationManager } from '../../utils/navigation';
 import { consola } from 'consola';
 import { logger } from '../../utils/logger';
+
+/**
+ * Access tokens cannot list workspaces, so when the workspace slug is already
+ * known use it directly instead of looking it up.
+ */
+async function resolveWorkspaces(token: string, slug?: string): Promise<Workspace[]> {
+  if (slug && isAccessToken(token)) {
+    return [{ slug } as Workspace];
+  }
+  return listWorkspaces(token);
+}
 
 const browseCommand = new Command('browse');
 
@@ -42,7 +54,7 @@ browseCommand
       
       if (options.workspace) {
         // Use specified workspace
-        const workspaces = await listWorkspaces(token);
+        const workspaces = await resolveWorkspaces(token, options.workspace);
         selectedWorkspace = workspaces.find(w => w.slug === options.workspace);
         
         if (!selectedWorkspace) {
@@ -59,7 +71,7 @@ browseCommand
         
         if (defaultWorkspaceSlug) {
           // Use default workspace
-          const workspaces = await listWorkspaces(token);
+          const workspaces = await resolveWorkspaces(token, defaultWorkspaceSlug);
           selectedWorkspace = workspaces.find(w => w.slug === defaultWorkspaceSlug);
           
           if (selectedWorkspace) {

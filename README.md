@@ -96,6 +96,26 @@ you want to do (at least `Repositories: Read`; add write/admin scopes for creati
 restrictions, etc.). Credentials are stored as `email:api_token`; if you skip `login`, the CLI prompts for
 them the first time you run any command.
 
+### Access tokens
+
+Repository, project, and workspace access tokens (created under **Repository / Project / Workspace
+settings → Access tokens**) are also supported:
+
+```bash
+bb login --access-token
+```
+
+The token is saved on its own (no `email:` prefix) and sent as `Authorization: Bearer <token>`. Access
+tokens are not tied to a user, so login does not verify them against `GET /user`.
+
+Because an access token cannot list workspaces, `bb repos list --all`, interactive
+`bb config set-workspace`, and `bb browse` without a workspace are unavailable. Pass `-w <workspace>` or
+set a default workspace instead:
+
+```bash
+bb config set-workspace -w <workspace>
+```
+
 ## Conventions
 
 These apply across the whole CLI:
@@ -567,7 +587,8 @@ _Generated from the live command tree. Run any command with `--help` for the sam
 
 If you get a 401, check that:
 
-1. You used the `email:api_token` format (not a password).
+1. You used the `email:api_token` format (not a password), or logged in with `bb login --access-token`
+   for a repository / project / workspace access token.
 2. Your API token is current — tokens expire; create a new one if needed.
 3. The token has the scopes the command needs (read for listing, write/admin for mutations).
 4. Test directly:

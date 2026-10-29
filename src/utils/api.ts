@@ -10,20 +10,31 @@ export interface PaginatedResponse<T> {
   values: T[];
 }
 
+export const ACCESS_TOKEN_NO_WORKSPACES =
+  'Listing workspaces is not available with an access token. Pass --workspace <workspace> or set a default with `bb config set-workspace -w <workspace>`.';
+
 /**
- * Creates a Basic Auth header from credentials
- * @param credentials - Format: "username:api_token"
- * @returns Basic Auth header string
+ * Returns true when the saved credentials are a Bitbucket access token
+ * (repository / project / workspace) rather than `username:api_token`.
+ */
+export function isAccessToken(credentials: string): boolean {
+  return !credentials.includes(':');
+}
+
+/**
+ * Creates an Authorization header from credentials
+ * @param credentials - Format: "username:api_token" or a bare access token
+ * @returns Basic Auth header string, or Bearer header for access tokens
  */
 export function createAuthHeader(credentials: string): string {
   if (!credentials || credentials.trim() === '') {
     throw new Error('Credentials cannot be empty');
   }
-  
-  if (!credentials.includes(':')) {
-    throw new Error('Invalid credentials format. Please use: username:api_token');
+
+  if (isAccessToken(credentials)) {
+    return `Bearer ${credentials.trim()}`;
   }
-  
+
   const [username, apiToken] = credentials.split(':');
   if (!username || !apiToken) {
     throw new Error('Invalid credentials format. Both username and API token are required.');
